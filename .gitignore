@@ -1,0 +1,53 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+
+# Django / generated assets
+staticfiles/
+media/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.env
+*.local
+local_settings.py
+.python-version
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Logs and temp files
+*.log
+logs/
+*.tmp
+*.bak
+
+# IDE / OS clutter
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

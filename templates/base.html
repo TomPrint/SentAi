@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="{{ request.LANGUAGE_CODE|default:'en' }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentAi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        display: ["Space Grotesk", "sans-serif"],
+                        mono: ["IBM Plex Mono", "monospace"],
+                    },
+                    colors: {
+                        brand: {
+                            DEFAULT: "#00d4aa",
+                            dim: "#00b090",
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply antialiased; }
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            input[type="url"],
+            input[type="number"],
+            select,
+            textarea {
+                @apply w-full rounded border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-[#00d4aa]/50 focus:ring-1 focus:ring-[#00d4aa]/30;
+            }
+        }
+        @layer utilities {
+            .grid-bg {
+                background-image:
+                    linear-gradient(rgba(0,212,170,0.06) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,212,170,0.06) 1px, transparent 1px);
+                background-size: 40px 40px;
+            }
+            .glow-teal {
+                box-shadow: 0 0 0 1px rgba(0,212,170,0.25), 0 0 24px rgba(0,212,170,0.10);
+            }
+            .glow-teal-sm {
+                box-shadow: 0 0 0 1px rgba(0,212,170,0.20), 0 0 12px rgba(0,212,170,0.08);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-[#0a0e14] text-slate-100 grid-bg">
+    {% get_media_prefix as media_prefix %}
+    <!-- ambient glows -->
+    <div class="pointer-events-none fixed left-0 top-0 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,212,170,0.12),transparent_70%)]" aria-hidden="true"></div>
+    <div class="pointer-events-none fixed bottom-0 right-0 h-[400px] w-[400px] translate-x-1/3 translate-y-1/3 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.10),transparent_70%)]" aria-hidden="true"></div>
+
+    <div class="relative mx-auto w-full max-w-7xl px-3 pb-16 pt-4 sm:px-6 lg:px-8">
+        <header class="mb-8 flex flex-col gap-4 border-b border-white/[0.06] pb-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <a class="inline-flex items-center" href="{% url 'dashboard:home' %}">
+                    <span class="font-display text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                            SentAi<span class="inline-block ml-1 h-2.5 w-2.5 rounded-full bg-[#00d4aa] shadow-[0_0_10px_rgba(0,212,170,0.9)] align-bottom mb-1"></span>
+                    </span>
+                </a>
+                <p class="mt-1 font-mono text-xs text-slate-500 tracking-wider">
+                    {% if request.LANGUAGE_CODE == 'pl' %}
+                        // AI-native data publishing
+                    {% else %}
+                        // AI-native data publishing
+                    {% endif %}
+                </p>
+            </div>
+            <div class="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:w-auto">
+                <form action="{% url 'set_language' %}" method="post" class="w-full sm:w-auto">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    {% if request.LANGUAGE_CODE == 'pl' %}
+                        <button class="inline-flex min-h-9 w-full items-center justify-center rounded border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs font-medium text-slate-400 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa] sm:w-auto" type="submit" name="language" value="en">EN</button>
+                    {% else %}
+                        <button class="inline-flex min-h-9 w-full items-center justify-center rounded border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs font-medium text-slate-400 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa] sm:w-auto" type="submit" name="language" value="pl">PL</button>
+                    {% endif %}
+                </form>
+                {% if request.user.is_authenticated %}
+                    {% if navbar_show_account_badges %}
+                        <div class="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
+                            <a class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded border border-white/10 bg-white/5 px-2 py-2 font-mono text-[10px] font-medium text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa] sm:px-3" href="{% url 'dashboard:plan-update' %}">
+                                <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M4 7h16l-2 11H6L4 7zm4-3h8v2H8V4z" fill="currentColor"/>
+                                </svg>
+                                <span class="truncate">{{ navbar_user_plan_tier }}</span>
+                            </a>
+                            <span class="inline-flex min-h-9 cursor-default items-center justify-center gap-1.5 rounded border border-white/10 bg-white/5 px-2 py-2 font-mono text-[10px] font-medium text-slate-300 sm:px-3">
+                                <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3.3 0-6 1.8-6 4v1h12v-1c0-2.2-2.7-4-6-4z" fill="currentColor"/>
+                                </svg>
+                                <span class="max-w-[88px] truncate sm:max-w-[140px]">{{ navbar_user_display_name }}</span>
+                            </span>
+                            <span class="inline-flex min-h-9 cursor-default items-center justify-center gap-1.5 rounded border border-white/10 bg-white/5 px-2 py-2 font-mono text-[10px] font-medium text-slate-300 sm:px-3">
+                                <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M5 6h14v12H5V6zm2 2v8h10V8H7zm4 1h2v6h-2V9z" fill="currentColor"/>
+                                </svg>
+                                <span class="truncate font-mono">{{ navbar_organization_count }}/{{ navbar_organization_limit }}</span>
+                            </span>
+                        </div>
+                    {% endif %}
+                    {% if request.user.is_superuser %}
+                        <a class="inline-flex min-h-9 w-full items-center justify-center rounded border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs font-medium text-slate-400 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa] sm:w-auto" href="{% url 'admin:index' %}">
+                            {% if request.LANGUAGE_CODE == 'pl' %}admin{% else %}admin{% endif %}
+                        </a>
+                        <a class="inline-flex min-h-9 w-full items-center justify-center rounded border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs font-medium text-slate-400 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa] sm:w-auto" href="{% url 'companies_api:organization-list' %}">api</a>
+                    {% endif %}
+                    <form action="{% url 'logout' %}" method="post" class="w-full sm:w-auto">
+                        {% csrf_token %}
+                        <button class="inline-flex min-h-9 w-full items-center justify-center rounded border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs font-medium text-slate-400 transition hover:border-rose-500/40 hover:text-rose-400 sm:w-auto" type="submit">
+                            {% if request.LANGUAGE_CODE == 'pl' %}wyloguj{% else %}logout{% endif %}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </header>
+
+        <main class="grid gap-4">
+            {% if messages %}
+                <section class="grid gap-2">
+                    {% for message in messages %}
+                        <div class="rounded border border-[#00d4aa]/20 bg-[#00d4aa]/5 px-4 py-3 font-mono text-sm text-[#00d4aa]">
+                            <span class="mr-2 opacity-60">//</span>{{ message }}
+                        </div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

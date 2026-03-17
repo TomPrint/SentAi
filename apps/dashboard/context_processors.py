@@ -1,0 +1,23 @@
+from apps.accounts.models import USER_PLAN_ORGANIZATION_LIMITS
+
+
+def navbar_account_context(request):
+    user = request.user
+    if not user.is_authenticated or user.is_superuser:
+        return {
+            "navbar_show_account_badges": False,
+        }
+
+    organization_count = user.organizations.count()
+    organization_limit = user.organization_limit()
+    utilization_percent = min(100, int((organization_count / organization_limit) * 100)) if organization_limit else 0
+
+    return {
+        "navbar_show_account_badges": True,
+        "navbar_user_display_name": user.get_full_name() or user.username,
+        "navbar_user_plan_tier": user.plan_tier,
+        "navbar_organization_count": organization_count,
+        "navbar_organization_limit": organization_limit,
+        "navbar_organization_utilization": utilization_percent,
+        "navbar_plan_limits": USER_PLAN_ORGANIZATION_LIMITS,
+    }

@@ -1,0 +1,115 @@
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.urls import reverse
+
+from apps.accounts.models import UserPlanTier
+from apps.companies.models import Organization
+
+
+User = get_user_model()
+
+
+class DashboardPlanLimitTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="client",
+            email="client@example.com",
+            password="strong-pass-123",
+        )
+        self.other_user = User.objects.create_user(
+            username="other-client",
+            email="other-client@example.com",
+            password="strong-pass-123",
+        )
+        self.client.force_login(self.user)
+
+    def test_add_company_button_visible_when_under_limit(self):
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Add company")
+
+    def test_add_company_button_hidden_when_basic_limit_reached(self):
+        Organization.objects.create(
+            owner=self.user,
+            name="Basic company",
+            slug="basic-company",
+        )
+
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Add company")
+
+    def test_create_view_redirects_when_basic_limit_reached(self):
+        Organization.objects.create(
+            owner=self.user,
+            name="Basic company",
+            slug="basic-company",
+        )
+
+        response = self.client.get(reverse("dashboard:organization-create"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:home"))
+
+    def test_navbar_shows_plan_user_and_counter(self):
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("dashboard:plan-update"))
+        self.assertContains(response, "Plan BASIC")
+        self.assertContains(response, "client")
+        self.assertContains(response, "0/1")
+
+    def test_user_can_change_plan_on_plan_page(self):
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {"plan_tier": UserPlanTier.PLUS},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:home"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.plan_tier, UserPlanTier.PLUS)
+
+        home_response = self.client.get(reverse("dashboard:home"))
+        self.assertContains(home_response, "Plan PLUS")
+        self.assertContains(home_response, "0/3")
+
+    def test_plan_downgrade_is_blocked_if_user_has_too_many_pages(self):
+        self.user.plan_tier = UserPlanTier.PLUS
+        self.user.save(update_fields=["plan_tier"])
+        Organization.objects.create(owner=self.user, name="A", slug="a")
+        Organization.objects.create(owner=self.user, name="B", slug="b")
+
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {"plan_tier": UserPlanTier.BASIC},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.plan_tier, UserPlanTier.PLUS)
+        self.assertContains(response, "Please reduce to 1 or fewer")
+
+    def test_user_can_delete_own_organization(self):
+        organization = Organization.objects.create(owner=self.user, name="Delete me", slug="delete-me")
+
+        response = self.client.post(reverse("dashboard:organization-delete", args=[organization.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:home"))
+        self.assertFalse(Organization.objects.filter(pk=organization.pk).exists())
+
+    def test_user_cannot_delete_other_user_organization(self):
+        foreign_organization = Organization.objects.create(
+            owner=self.other_user,
+            name="Foreign",
+            slug="foreign",
+        )
+
+        response = self.client.post(reverse("dashboard:organization-delete", args=[foreign_organization.pk]))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Organization.objects.filter(pk=foreign_organization.pk).exists())

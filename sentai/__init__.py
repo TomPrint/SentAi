@@ -1,0 +1,1 @@
+"""SentAi Django project package."""
