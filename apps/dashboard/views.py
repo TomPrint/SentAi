@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, FormView, TemplateView, UpdateView
+import json
 
 from apps.companies.forms import OrganizationForm
 from apps.companies.models import Organization
@@ -60,6 +61,27 @@ class OrganizationCreateView(UserOrganizationQuerysetMixin, CreateView):
             return redirect("dashboard:home")
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["language_code"] = self.request.LANGUAGE_CODE
+        from apps.subscriptions.models import PlanTier, PLAN_FEATURES
+        tier_key = self.request.user.plan_tier or PlanTier.BASIC
+
+        class SubscriptionHint:
+            def feature_matrix(self):
+                return PLAN_FEATURES.get(
+                    tier_key,
+                    PLAN_FEATURES[PlanTier.BASIC]
+                )
+
+        class OrganizationHint:
+            def get_subscription(self):
+                return SubscriptionHint()
+
+        organization_hint = OrganizationHint()
+        kwargs["organization"] = organization_hint
+        return kwargs
+
     def form_valid(self, form):
         form.instance.owner = self.request.user
         messages.success(self.request, "Organization profile saved.")
@@ -71,6 +93,12 @@ class OrganizationUpdateView(UserOrganizationQuerysetMixin, UpdateView):
     form_class = OrganizationForm
     template_name = "dashboard/organization_form.html"
     success_url = reverse_lazy("dashboard:home")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["language_code"] = self.request.LANGUAGE_CODE
+        kwargs["organization"] = self.object
+        return kwargs
 
     def form_valid(self, form):
         messages.success(self.request, "Organization profile updated.")

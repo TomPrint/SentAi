@@ -4,7 +4,10 @@ from apps.accounts.models import USER_PLAN_ORGANIZATION_LIMITS, UserPlanTier
 
 
 class UserPlanUpdateForm(forms.Form):
-    plan_tier = forms.ChoiceField(choices=UserPlanTier.choices, widget=forms.RadioSelect)
+    plan_tier = forms.ChoiceField(
+        choices=UserPlanTier.choices,
+        widget=forms.RadioSelect(attrs={"class": "plan-tier-radio"}),
+    )
 
     def __init__(self, *args, user=None, **kwargs):
         self.user = user

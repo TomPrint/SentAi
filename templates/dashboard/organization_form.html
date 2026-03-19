@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<section class="relative overflow-hidden rounded-lg border border-white/[0.07] bg-[#0d1117] p-6 glow-teal lg:p-8">
+<section class="relative overflow-visible rounded-lg border border-white/[0.07] bg-[#0d1117] p-6 glow-teal lg:p-8">
     <div class="pointer-events-none absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-[#00d4aa] to-transparent" aria-hidden="true"></div>
     <div class="pointer-events-none absolute left-0 top-0 h-24 w-px bg-gradient-to-b from-[#00d4aa] to-transparent" aria-hidden="true"></div>
     <div class="mb-6 flex items-start justify-between gap-4">
@@ -16,22 +16,53 @@
             </h1>
         </div>
     </div>
-    <form method="post">
+    <form method="post" id="organization-form">
         {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="mb-4 rounded border border-rose-400/40 bg-rose-500/10 px-3 py-2 font-mono text-xs text-rose-300">
+                {{ form.non_field_errors|striptags }}
+            </div>
+        {% endif %}
         <div class="grid gap-4 md:grid-cols-2">
             {% for field in form %}
-                <label class="block space-y-2 {% if field.name == 'long_description_en' or field.name == 'long_description_pl' %}md:col-span-2{% endif %}">
-                    <span class="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ field.label }}</span>
-                    {{ field }}
-                    {% if field.help_text %}
-                        <small class="block font-mono text-[10px] text-slate-500">{{ field.help_text }}</small>
-                    {% endif %}
-                    {% if field.errors %}
-                        <small class="block font-mono text-[10px] font-semibold text-rose-400">{{ field.errors|striptags }}</small>
-                    {% endif %}
-                </label>
+                {% if field.name != 'content_languages' %}
+                    <label class="block space-y-2 md:col-span-2">
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">
+                            {{ field.label }}
+                        </span>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <small class="block font-mono text-[10px] text-slate-500">{{ field.help_text }}</small>
+                        {% endif %}
+                        {% if field.errors %}
+                            <small class="block font-mono text-[10px] font-semibold text-rose-400">{{ field.errors|striptags }}</small>
+                        {% endif %}
+                    </label>
+                {% endif %}
             {% endfor %}
         </div>
+
+        <!-- Dynamic description fields -->
+        <div class="mt-8 space-y-6">
+            <div class="border-t border-white/10 pt-6">
+                <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-slate-300 mb-4">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Opisy firmy{% else %}Company descriptions{% endif %}
+                </h3>
+
+                <div id="descriptions-container" class="space-y-6">
+                    <!-- Будет заполнено JavaScript -->
+                </div>
+
+                <!-- Add language buttons -->
+                <div id="add-language-buttons" class="mt-6 space-y-2">
+                    <!-- Будет заполнено JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden field for selected languages -->
+        <input type="hidden" id="id_content_languages" name="content_languages" value="[]">
+
         <div class="mt-6 flex flex-wrap gap-2">
             <button class="inline-flex min-h-10 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-5 py-2.5 font-mono text-sm font-semibold text-[#00d4aa] shadow-[0_0_20px_rgba(0,212,170,0.15)] transition hover:bg-[#00d4aa]/20" type="submit">
                 {% if request.LANGUAGE_CODE == 'pl' %}zapisz{% else %}save{% endif %}
@@ -49,4 +80,247 @@
         {% endif %}
     </p>
 </section>
+
+<style>
+    .language-picker-menu {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 212, 170, 0.4) rgba(255, 255, 255, 0.05);
+    }
+
+    .language-picker-menu::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .language-picker-menu::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .language-picker-menu::-webkit-scrollbar-thumb {
+        background: rgba(0, 212, 170, 0.4);
+        border-radius: 999px;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const jsonData = JSON.parse('{{ form.get_json_data|escapejs }}');
+
+    const config = {
+        uiLanguage: '{{ form.ui_language }}',
+        allowedLanguagesCount: {{ form.allowed_languages_count }},
+        selectedLanguages: {{ form.selected_languages|safe }},
+        languageLabels: {{ form.language_labels|safe }},
+        descriptionHelps: jsonData.description_helps,
+        languageButtonHelp: jsonData.languageButtonHelp,
+        availableLanguages: jsonData.availableLanguages
+    };
+
+    const container = document.getElementById('descriptions-container');
+    const buttonsContainer = document.getElementById('add-language-buttons');
+    const contentLanguagesField = document.getElementById('id_content_languages');
+
+    let selectedLanguages = [...config.selectedLanguages];
+
+    const text = {
+        shortDescription: config.uiLanguage === 'pl' ? 'Krótki opis' : 'Short description',
+        longDescription: config.uiLanguage === 'pl' ? 'Pełny opis' : 'Long description',
+        remove: config.uiLanguage === 'pl' ? '✕ Usuń' : '✕ Remove',
+        chooseLanguage: config.uiLanguage === 'pl' ? 'Wybierz język' : 'Choose language',
+        selectLanguage: config.uiLanguage === 'pl' ? 'Wybierz język' : 'Select a language',
+        cancel: config.uiLanguage === 'pl' ? 'Anuluj' : 'Cancel',
+        addLanguage: config.uiLanguage === 'pl' ? 'Dodaj język' : 'Add language',
+    };
+
+    function getNthLanguageLabel(nextCount) {
+        if (config.uiLanguage === 'pl') {
+            if (nextCount === 2) return 'Dodaj drugi język';
+            if (nextCount === 3) return 'Dodaj trzeci język';
+            return 'Dodaj kolejny język';
+        }
+
+        if (nextCount === 2) return 'Add second language';
+        if (nextCount === 3) return 'Add third language';
+        return 'Add another language';
+    }
+
+    function renderLanguageSection(langCode) {
+        const langLabel = config.languageLabels[langCode];
+        const helps = config.descriptionHelps;
+        const shortValue = document.querySelector(`input[name="short_description_${langCode}"]`)?.value || '';
+        const longValue = document.querySelector(`textarea[name="long_description_${langCode}"]`)?.value || '';
+
+        const section = document.createElement('div');
+        section.className = 'language-section space-y-3 rounded border border-white/10 bg-white/5 p-4';
+        section.dataset.language = langCode;
+
+        section.innerHTML = `
+            <div class="flex items-center gap-2">
+                <h4 class="font-mono text-xs font-medium uppercase tracking-widest text-slate-300">${langLabel}</h4>
+                ${selectedLanguages.length > 1 ? `
+                    <button type="button" class="remove-language-btn inline-flex min-h-8 items-center justify-center rounded border border-rose-400/40 bg-rose-500/20 px-3 py-1 font-mono text-xs font-semibold text-rose-300 transition hover:bg-rose-500/30" data-language="${langCode}">
+                        ${text.remove}
+                    </button>
+                ` : ''}
+            </div>
+
+            <label class="block space-y-1">
+                <span class="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">
+                    ${text.shortDescription}
+                </span>
+                <input type="text" name="short_description_${langCode}" value="${shortValue}" maxlength="280" 
+                       class="w-full rounded border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-white placeholder-slate-500 transition hover:border-white/20 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20">
+                <small class="block font-mono text-[10px] text-slate-500">${helps.short_description}</small>
+            </label>
+
+            <label class="block space-y-1">
+                <span class="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">
+                    ${text.longDescription}
+                </span>
+                <textarea name="long_description_${langCode}" rows="5" 
+                          class="w-full rounded border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-white placeholder-slate-500 transition hover:border-white/20 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20">${longValue}</textarea>
+                <small class="block font-mono text-[10px] text-slate-500">${helps.long_description}</small>
+            </label>
+        `;
+
+        const removeBtn = section.querySelector('.remove-language-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                removeLanguage(langCode);
+            });
+        }
+
+        container.appendChild(section);
+    }
+
+    function addLanguage(langCode) {
+        if (!selectedLanguages.includes(langCode)) {
+            selectedLanguages.push(langCode);
+            renderLanguageSection(langCode);
+            updateUI();
+        }
+    }
+
+    function removeLanguage(langCode) {
+        if (selectedLanguages.length > 1) {
+            selectedLanguages = selectedLanguages.filter(l => l !== langCode);
+            container.querySelector(`[data-language="${langCode}"]`)?.remove();
+            updateUI();
+        }
+    }
+
+    function renderLanguagePicker() {
+        const unavailable = config.availableLanguages.filter((lang) => !selectedLanguages.includes(lang));
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex items-center gap-2';
+
+        const pickerWrap = document.createElement('div');
+        pickerWrap.className = 'relative min-w-56';
+
+        let selectedLanguage = '';
+
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'w-full inline-flex items-center justify-between rounded border border-[#00d4aa]/40 bg-[#0d1117] px-3 py-2 font-mono text-xs text-slate-200 transition hover:border-[#00d4aa]/60 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20';
+        trigger.innerHTML = `<span>${text.chooseLanguage}</span><span class="text-[#00d4aa]">▾</span>`;
+
+        const menu = document.createElement('div');
+        menu.className = 'language-picker-menu absolute left-0 top-full z-30 mt-2 hidden max-h-56 w-full overflow-auto rounded border border-[#00d4aa]/40 bg-[#0d1117] p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)]';
+
+        unavailable.forEach((langCode) => {
+            const optionBtn = document.createElement('button');
+            optionBtn.type = 'button';
+            optionBtn.className = 'w-full rounded px-3 py-2 text-left font-mono text-xs text-slate-200 transition hover:bg-[#00d4aa]/20 hover:text-[#00d4aa]';
+            optionBtn.textContent = config.languageLabels[langCode] || langCode;
+            optionBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                selectedLanguage = langCode;
+                trigger.classList.add('border-[#00d4aa]','text-[#00d4aa]','shadow-[0_0_0_2px_rgba(0,212,170,0.15)]');
+                trigger.innerHTML = `<span>${config.languageLabels[langCode] || langCode}</span><span class="text-[#00d4aa]">▾</span>`;
+                menu.classList.add('hidden');
+            });
+            menu.appendChild(optionBtn);
+        });
+
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            menu.classList.toggle('hidden');
+        });
+
+        const closeMenuOnOutsideClick = (event) => {
+            if (!pickerWrap.contains(event.target)) {
+                menu.classList.add('hidden');
+                document.removeEventListener('click', closeMenuOnOutsideClick);
+            }
+        };
+
+        trigger.addEventListener('click', () => {
+            setTimeout(() => {
+                document.addEventListener('click', closeMenuOnOutsideClick);
+            }, 0);
+        });
+
+        pickerWrap.appendChild(trigger);
+        pickerWrap.appendChild(menu);
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'inline-flex min-h-10 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-4 py-2 font-mono text-xs font-semibold text-[#00d4aa] transition hover:bg-[#00d4aa]/20';
+        addBtn.textContent = text.addLanguage;
+
+        addBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!selectedLanguage) {
+                return;
+            }
+            addLanguage(selectedLanguage);
+        });
+
+        wrapper.appendChild(pickerWrap);
+        wrapper.appendChild(addBtn);
+        return wrapper;
+    }
+
+    function updateUI() {
+        buttonsContainer.innerHTML = '';
+        const canAddMore = selectedLanguages.length < config.allowedLanguagesCount;
+        const unavailable = config.availableLanguages.filter((lang) => !selectedLanguages.includes(lang));
+
+        if (canAddMore && unavailable.length > 0) {
+            const nextCount = selectedLanguages.length + 1;
+
+            const title = document.createElement('div');
+            title.className = 'group relative w-fit rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-4 py-2 font-mono text-xs font-semibold text-[#00d4aa]';
+            title.innerHTML = `
+                ${getNthLanguageLabel(nextCount)}
+                <span class="pointer-events-none absolute left-0 top-full mt-2 z-20 hidden w-80 rounded border border-[#00d4aa]/30 bg-[#0d1117] p-3 font-sans text-xs font-normal text-slate-200 shadow-[0_10px_30px_rgba(0,0,0,0.35)] group-hover:block group-focus-within:block">
+                    ${config.languageButtonHelp}
+                </span>
+            `;
+
+            const row = document.createElement('div');
+            row.className = 'flex flex-wrap items-center gap-2';
+
+            buttonsContainer.appendChild(title);
+            row.appendChild(renderLanguagePicker());
+            buttonsContainer.appendChild(row);
+        }
+
+        contentLanguagesField.value = JSON.stringify(selectedLanguages);
+    }
+
+    if (!Array.isArray(selectedLanguages) || selectedLanguages.length === 0) {
+        selectedLanguages = ['pl'];
+    }
+
+    if (selectedLanguages.length > config.allowedLanguagesCount) {
+        selectedLanguages = selectedLanguages.slice(0, config.allowedLanguagesCount);
+    }
+
+    selectedLanguages.forEach(langCode => {
+        renderLanguageSection(langCode);
+    });
+    updateUI();
+});
+</script>
 {% endblock %}

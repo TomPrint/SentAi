@@ -1,6 +1,56 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+    .plan-tier-radio,
+    input[type="radio"].plan-tier-radio {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 1rem;
+        height: 1rem;
+        margin: 0;
+        border-radius: 9999px;
+        position: relative;
+        border: 1px solid rgba(0, 212, 170, 0.55) !important;
+        background-color: #0d1117 !important;
+        background-image: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+        cursor: pointer;
+        transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+    }
+
+    .plan-tier-radio::before,
+    input[type="radio"].plan-tier-radio::before {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border-radius: 9999px;
+        background: #00d4aa;
+        box-shadow: 0 0 8px rgba(0, 212, 170, 0.55);
+        transform: scale(0);
+        transition: transform 120ms ease;
+    }
+
+    .plan-tier-radio:checked,
+    input[type="radio"].plan-tier-radio:checked {
+        border-color: #00d4aa !important;
+        background-color: #0d1117 !important;
+        box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.16), 0 0 14px rgba(0, 212, 170, 0.22) !important;
+    }
+
+    .plan-tier-radio:checked::before,
+    input[type="radio"].plan-tier-radio:checked::before {
+        transform: scale(1);
+    }
+
+    .plan-tier-radio:focus,
+    .plan-tier-radio:focus-visible {
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.25), 0 0 12px rgba(0, 212, 170, 0.2) !important;
+    }
+</style>
+
 <section class="relative overflow-hidden rounded-lg border border-white/[0.07] bg-[#0d1117] p-6 glow-teal lg:p-8">
     <div class="pointer-events-none absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-[#00d4aa] to-transparent" aria-hidden="true"></div>
     <div class="pointer-events-none absolute left-0 top-0 h-24 w-px bg-gradient-to-b from-[#00d4aa] to-transparent" aria-hidden="true"></div>
@@ -24,19 +74,48 @@
         {% csrf_token %}
         <div class="grid gap-3 sm:grid-cols-3">
             {% for radio in form.plan_tier %}
+                {% with tier=radio.data.value %}
                 <label class="group flex cursor-pointer flex-col gap-3 rounded-lg border border-white/[0.07] bg-white/[0.03] p-5 transition hover:border-[#00d4aa]/40 hover:bg-[#00d4aa]/5">
                     {{ radio.tag }}
-                    <span class="font-display text-2xl font-semibold tracking-tight text-white">{{ radio.choice_label }}</span>
-                    <span class="font-mono text-xs text-slate-500">
-                        {% if radio.choice_value == 'BASIC' %}
-                            {% if request.LANGUAGE_CODE == 'pl' %}1 strona{% else %}1 page{% endif %}
-                        {% elif radio.choice_value == 'PLUS' %}
-                            {% if request.LANGUAGE_CODE == 'pl' %}3 strony{% else %}3 pages{% endif %}
-                        {% else %}
-                            {% if request.LANGUAGE_CODE == 'pl' %}10 stron{% else %}10 pages{% endif %}
-                        {% endif %}
-                    </span>
+                    {% if tier == 'PLUS' or tier == 'PRO' %}
+                        <span class="font-display text-2xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#ff0080] via-[#ff1a8c] to-[#ff4da6] [text-shadow:0_0_2px_rgba(255,0,128,0.6),0_0_6px_rgba(255,0,128,0.4)]">{{ radio.choice_label }}</span>
+                    {% else %}
+                        <span class="font-display text-2xl font-semibold tracking-tight text-white">{{ radio.choice_label }}</span>
+                    {% endif %}
+                    <div class="space-y-1.5 rounded border border-white/10 bg-white/5 p-3">
+                        <div class="flex items-center justify-between font-mono text-[11px] text-slate-400">
+                            <span>{% if request.LANGUAGE_CODE == 'pl' %}Strony{% else %}Pages{% endif %}</span>
+                            <span class="font-semibold text-slate-200">
+                                {% if tier == 'BASIC' %}1{% elif tier == 'PLUS' %}3{% else %}10{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between font-mono text-[11px] text-slate-400">
+                            <span>{% if request.LANGUAGE_CODE == 'pl' %}Języki{% else %}Languages{% endif %}</span>
+                            <span class="font-semibold text-slate-200">
+                                {% if tier == 'BASIC' %}1{% elif tier == 'PLUS' %}2{% else %}3{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between font-mono text-[11px] text-slate-400">
+                            <span>{% if request.LANGUAGE_CODE == 'pl' %}Kanały AI{% else %}AI channels{% endif %}</span>
+                            <span class="font-semibold text-slate-200">
+                                {% if tier == 'BASIC' %}1{% elif tier == 'PLUS' %}2{% else %}3{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="font-mono text-[10px] leading-relaxed text-slate-500">
+                            {% if tier == 'BASIC' %}
+                                company.json
+                            {% elif tier == 'PLUS' %}
+                                company.json + company.jsonld
+                            {% else %}
+                                company.json + company.jsonld + llms.txt
+                            {% endif %}
+                        </div>
+                    </div>
                 </label>
+                {% endwith %}
             {% endfor %}
         </div>
 

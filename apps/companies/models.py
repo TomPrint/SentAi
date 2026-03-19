@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
+import json
 
 
 class Organization(models.Model):
@@ -21,6 +22,7 @@ class Organization(models.Model):
     postal_code = models.CharField(max_length=24, blank=True)
     country = models.CharField(max_length=120, blank=True)
     primary_language = models.CharField(max_length=2, choices=settings.LANGUAGES, default="pl")
+    content_languages = models.JSONField(default=list, help_text="Selected content languages for this organization")
     short_description_en = models.CharField(max_length=280, blank=True)
     short_description_pl = models.CharField(max_length=280, blank=True)
     long_description_en = models.TextField(blank=True)

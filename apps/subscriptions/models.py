@@ -15,6 +15,7 @@ class SubscriptionStatus(models.TextChoices):
 
 PLAN_FEATURES = {
     PlanTier.BASIC: {
+        "languages": 1,
         "advanced_formats": False,
         "llms_txt": False,
         "social_profiles": 0,
@@ -23,6 +24,7 @@ PLAN_FEATURES = {
         "content_entries": 0,
     },
     PlanTier.PLUS: {
+        "languages": 2,
         "advanced_formats": True,
         "llms_txt": False,
         "social_profiles": 5,
@@ -31,6 +33,7 @@ PLAN_FEATURES = {
         "content_entries": 10,
     },
     PlanTier.PRO: {
+        "languages": 3,
         "advanced_formats": True,
         "llms_txt": True,
         "social_profiles": 15,
