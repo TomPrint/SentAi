@@ -82,6 +82,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    "drf_spectacular",
+    "django_filters",
     "apps.accounts",
     "apps.subscriptions",
     "apps.companies",
@@ -178,7 +180,26 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
-    "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "SentAi Company Catalog API",
+    "DESCRIPTION": (
+        "Public read-only API for the SentAi company catalog. "
+        "All public endpoints require no authentication and are optimised "
+        "for LLM agents, developers, and automated discovery tools."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "CONTACT": {"name": "SentAi"},
+    "LICENSE": {"name": "Proprietary"},
 }
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

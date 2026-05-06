@@ -122,6 +122,10 @@ class Organization(models.Model):
     def supports_llms_txt(self) -> bool:
         return self.get_subscription().supports("llms_txt")
 
+    @property
+    def supports_company_md(self) -> bool:
+        return self.get_subscription().supports("company_md")
+
     def localized_text(self, field_prefix: str, language_code: str | None = None) -> str:
         language = (language_code or self.primary_language or "en")[:2]
         fallback = "pl" if language == "en" else "en"

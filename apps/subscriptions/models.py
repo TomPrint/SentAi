@@ -17,6 +17,7 @@ PLAN_FEATURES = {
     PlanTier.BASIC: {
         "languages": 1,
         "advanced_formats": False,
+        "company_md": False,
         "llms_txt": False,
         "social_profiles": 0,
         "tags": 0,
@@ -26,6 +27,7 @@ PLAN_FEATURES = {
     PlanTier.PLUS: {
         "languages": 2,
         "advanced_formats": True,
+        "company_md": False,
         "llms_txt": False,
         "social_profiles": 5,
         "tags": 25,
@@ -35,6 +37,7 @@ PLAN_FEATURES = {
     PlanTier.PRO: {
         "languages": 3,
         "advanced_formats": True,
+        "company_md": True,
         "llms_txt": True,
         "social_profiles": 15,
         "tags": 100,

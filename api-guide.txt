@@ -1,0 +1,304 @@
+================================================================
+  SentAi Company Catalog API — Developer Guide
+================================================================
+
+Base URL:      http://your-domain.com
+Interactive:   /api/schema/swagger-ui/
+ReDoc:         /api/schema/redoc/
+OpenAPI JSON:  /openapi.json
+
+All public catalog endpoints require NO authentication.
+All responses are UTF-8 encoded JSON unless noted otherwise.
+
+
+----------------------------------------------------------------
+  AUTHENTICATION (write access only)
+----------------------------------------------------------------
+
+The catalog is fully public. Authentication is only needed to
+manage company data via the private dashboard API.
+
+  POST /api/auth/login/
+  Content-Type: application/json
+
+  { "username": "you@example.com", "password": "yourpassword" }
+
+Response:
+  { "token": "abc123...", "user": { ... } }
+
+Use the token in subsequent requests:
+  Authorization: Token abc123...
+
+
+----------------------------------------------------------------
+  COMPANY LIST
+----------------------------------------------------------------
+
+  GET /api/companies/
+
+Returns a paginated list of all public companies (20 per page).
+
+Pagination:
+  ?page=2
+
+Filter parameters:
+  search        Search name, AI summary, or description (contains)
+  city          Filter by city (case-insensitive contains)
+  country       Filter by country code, e.g. PL (exact)
+  language      Filter by primary language, e.g. en or pl (exact)
+  company_type  manufacturing | services | trading | other
+  tag           Filter by tag name (case-insensitive contains)
+  verified      true — return only human-verified companies
+  has_price     true — return only companies with priced products
+
+Ordering (prefix - for descending):
+  ?ordering=name
+  ?ordering=-updated_at
+  ?ordering=-created_at
+
+Example:
+  GET /api/companies/?country=PL&company_type=services&ordering=-updated_at
+
+Response shape:
+  {
+    "count": 42,
+    "next": "http://.../?page=2",
+    "previous": null,
+    "results": [
+      {
+        "name": "Acme Sp. z o.o.",
+        "slug": "acme-sp-z-o-o",
+        "company_type": "services",
+        "company_type_label": "Services",
+        "city": "Warsaw",
+        "country": "PL",
+        "primary_language": "pl",
+        "website_url": "https://acme.pl",
+        "ai_summary": "Short plain-text summary (max 280 chars).",
+        "tags": ["logistics", "automation"],
+        "verification_status": "unverified",
+        "available_formats": {
+          "company_json": true,
+          "company_jsonld": false,
+          "company_md": false,
+          "llms_txt": false
+        },
+        "feed_urls": {
+          "company_json": "http://.../api/public/acme-sp-z-o-o/company.json",
+          "company_jsonld": null,
+          "company_md": null,
+          "llms_txt": null
+        },
+        "updated_at": "2026-05-06T21:42:00+00:00"
+      },
+      ...
+    ]
+  }
+
+
+----------------------------------------------------------------
+  COMPANY DETAIL
+----------------------------------------------------------------
+
+  GET /api/companies/{slug}/
+
+Returns the full structured profile for a single company.
+
+Includes caching headers:
+  ETag: "d41d8cd98f00b204e9800998ecf8427e"
+  Last-Modified: Wed, 06 May 2026 21:42:00 GMT
+
+Use these for conditional GET requests:
+  If-None-Match: "d41d8cd98f00b204e9800998ecf8427e"
+  If-Modified-Since: Wed, 06 May 2026 21:42:00 GMT
+
+
+----------------------------------------------------------------
+  RECENT UPDATES
+----------------------------------------------------------------
+
+  GET /api/companies/updates/
+  GET /api/companies/updates/?since=2026-05-01T00:00:00Z
+
+Returns companies whose profiles were updated after the given
+datetime. Defaults to the last 7 days when `since` is omitted.
+
+Use this endpoint to keep a local cache fresh without
+re-downloading the full catalog on every poll.
+
+The `since` parameter accepts ISO 8601 datetime:
+  2026-05-01T00:00:00Z          UTC explicit
+  2026-05-01T00:00:00+02:00     with timezone offset
+  2026-05-01T00:00:00           naive (treated as UTC)
+
+Response shape:
+  {
+    "since": "2026-05-01T00:00:00Z",
+    "total": 3,
+    "results": [ ... ]   <- same shape as /api/companies/ results
+  }
+
+Typical polling pattern:
+  1. Full sync:    GET /api/public/all.json
+  2. Hourly diff:  GET /api/companies/updates/?since=<last_poll_time>
+
+
+----------------------------------------------------------------
+  BULK CATALOG
+----------------------------------------------------------------
+
+  GET /api/public/all.json
+
+Returns the full catalog in a single JSON response with metadata.
+Use for full syncs or loading the entire catalog into memory.
+
+Response shape:
+  {
+    "meta": {
+      "catalog": "sentai-company-catalog",
+      "version": "1.0",
+      "generated_at": "2026-05-06T22:00:00+00:00",
+      "last_updated": "2026-05-06T21:42:00+00:00",
+      "total": 42
+    },
+    "results": [ ... ]   <- lightweight entries, same as /api/companies/
+  }
+
+---
+
+  GET /api/public/catalog.ndjson
+  Content-Type: application/x-ndjson
+
+Streams the full catalog as NDJSON (one JSON object per line).
+Each line is a complete company profile (same as company.json).
+Suitable for large catalogs, streaming pipelines, and LLM ingestion.
+
+Example (curl):
+  curl http://your-domain.com/api/public/catalog.ndjson | while IFS= read -r line; do
+    echo "$line" | jq .name
+  done
+
+
+----------------------------------------------------------------
+  PER-COMPANY STRUCTURED FORMATS
+----------------------------------------------------------------
+
+Each company has a URL-safe lowercase slug. Use the slug in all
+per-company endpoints.
+
+  GET /api/public/{slug}/company.json
+  Content-Type: application/json
+  Available: all plans
+
+  Full structured company profile including social profiles,
+  products, content entries, and available feed URLs.
+
+---
+
+  GET /api/public/{slug}/company.jsonld
+  Content-Type: application/ld+json
+  Available: PLUS and PRO plans (404 otherwise)
+
+  Schema.org structured data for the company. Suitable for
+  embedding in pages or feeding to knowledge graph tools.
+
+---
+
+  GET /api/public/{slug}/company.md
+  Content-Type: text/markdown
+  Available: PRO plan only (404 otherwise)
+
+  Human and LLM-readable Markdown profile. Includes name,
+  summary, company information, specializations, products,
+  content updates, social profiles, and descriptions by language.
+
+---
+
+  GET /api/public/{slug}/llms.txt
+  Content-Type: text/plain
+  Available: PRO plan only (404 otherwise)
+
+  Plain-text LLM feed following the llmstxt.org convention.
+  Contains key facts, links, and structured text suitable for
+  direct injection into LLM context windows.
+
+
+----------------------------------------------------------------
+  LLM DISCOVERY
+----------------------------------------------------------------
+
+  GET /llms.txt
+  Content-Type: text/plain
+
+Site-wide llms.txt listing all PRO companies that have opted in
+to AI indexing. Each entry links to that company's llms.txt feed.
+Follows the https://llmstxt.org convention.
+
+Intended for AI crawlers discovering the catalog automatically.
+
+
+----------------------------------------------------------------
+  PLAN GATING SUMMARY
+----------------------------------------------------------------
+
+  Format          BASIC   PLUS    PRO
+  --------------- ------- ------- -------
+  company.json      YES     YES     YES
+  company.jsonld    no      YES     YES
+  company.md        no      no      YES
+  llms.txt          no      no      YES
+  site llms.txt     no      no      YES *
+
+  * Only PRO companies appear in /llms.txt
+
+
+----------------------------------------------------------------
+  SLUGS
+----------------------------------------------------------------
+
+Slugs are auto-generated from the company name at creation time.
+They are lowercase and URL-safe, e.g.:
+  "Acme Sp. z o.o."  ->  "acme-sp-z-o-o"
+
+You can discover all available slugs via:
+  GET /api/companies/          (paginated)
+  GET /api/public/all.json     (full list, slug field)
+
+
+----------------------------------------------------------------
+  ERROR RESPONSES
+----------------------------------------------------------------
+
+  400  Bad Request   — invalid parameter (e.g. bad datetime format)
+  404  Not Found     — slug not found, company not public,
+                       or format not available on current plan
+  401  Unauthorized  — missing or invalid token (write endpoints only)
+
+
+----------------------------------------------------------------
+  QUICK EXAMPLES
+----------------------------------------------------------------
+
+# List Polish service companies, newest first
+curl "http://your-domain.com/api/companies/?country=PL&company_type=services&ordering=-updated_at"
+
+# Get full profile for a company
+curl "http://your-domain.com/api/companies/acme-sp-z-o-o/"
+
+# Companies updated in the last 7 days (default)
+curl "http://your-domain.com/api/companies/updates/"
+
+# Companies updated since a specific date
+curl "http://your-domain.com/api/companies/updates/?since=2026-05-01T00:00:00Z"
+
+# Download full catalog as NDJSON
+curl "http://your-domain.com/api/public/catalog.ndjson" > catalog.ndjson
+
+# Get Markdown profile for an LLM (PRO company)
+curl "http://your-domain.com/api/public/acme-sp-z-o-o/company.md"
+
+# Get LLM feed for a company (PRO)
+curl "http://your-domain.com/api/public/acme-sp-z-o-o/llms.txt"
+
+# Site-wide LLM index
+curl "http://your-domain.com/llms.txt"
