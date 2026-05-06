@@ -142,6 +142,9 @@
                                 {% if request.LANGUAGE_CODE == 'pl' %}Widoczna{% else %}Public{% endif %}
                             </th>
                             <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                                {% if request.LANGUAGE_CODE == 'pl' %}Weryfikacja{% else %}Verified{% endif %}
+                            </th>
+                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Kanały{% else %}Feeds{% endif %}
                             </th>
                         </tr>
@@ -178,6 +181,16 @@
                                 {% endif %}
                             </td>
                             <td class="px-4 py-3">
+                                {% if item.organization.verification_status == 'human_admin_verified' %}
+                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-[#00d4aa]">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-[#00d4aa]"></span>
+                                        {% if request.LANGUAGE_CODE == 'pl' %}Zweryfikowana{% else %}Verified{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="font-mono text-[10px] uppercase tracking-widest text-slate-500">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-2">
                                     <a href="{{ item.public_urls.company_json }}" target="_blank" rel="noopener"
                                        class="inline-flex min-h-7 items-center justify-center rounded border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
@@ -187,6 +200,12 @@
                                         <a href="{{ item.public_urls.company_jsonld }}" target="_blank" rel="noopener"
                                            class="inline-flex min-h-7 items-center justify-center rounded border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
                                             JSON-LD
+                                        </a>
+                                    {% endif %}
+                                    {% if item.supports_company_md %}
+                                        <a href="{{ item.public_urls.company_md }}" target="_blank" rel="noopener"
+                                           class="inline-flex min-h-7 items-center justify-center rounded border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
+                                            MD
                                         </a>
                                     {% endif %}
                                     {% if item.supports_llms_txt %}
@@ -200,7 +219,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center font-mono text-sm text-slate-500">
+                            <td colspan="6" class="px-4 py-8 text-center font-mono text-sm text-slate-500">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Brak uruchomionych stron.{% else %}No active pages.{% endif %}
                             </td>
                         </tr>

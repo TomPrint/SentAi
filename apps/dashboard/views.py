@@ -499,6 +499,7 @@ class ClientDetailView(AdminRequiredMixin, TemplateView):
                 "organization": organization,
                 "public_urls": public_feed_urls(organization, self.request),
                 "supports_jsonld": organization.supports_advanced_formats,
+                "supports_company_md": organization.supports_company_md,
                 "supports_llms_txt": organization.supports_llms_txt,
             }
             for organization in organizations
