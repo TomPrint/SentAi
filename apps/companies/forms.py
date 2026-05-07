@@ -102,7 +102,7 @@ class OrganizationForm(forms.ModelForm):
     AVAILABLE_LANGUAGES = [code for code, _label in FEED_LANGUAGE_CHOICES]
     website_url = forms.CharField(required=False, widget=forms.TextInput())
     social_profiles_text = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 4}))
-    featured_entry_type = forms.ChoiceField(required=False, choices=[("", "---------")] + list(EntryType.choices))
+    featured_entry_type = forms.CharField(required=False, widget=forms.HiddenInput(), initial=EntryType.FAQ)
     featured_entry_summary = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
     ai_summary = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
     featured_entry_url = forms.CharField(required=False, widget=forms.TextInput())
@@ -248,9 +248,9 @@ class OrganizationForm(forms.ModelForm):
             self.fields["featured_entry_summary"].widget.attrs.update(
                 {
                     "placeholder": (
-                        "np. Jak nasze rozwiązanie pomaga skrócić czas obsługi klienta o 30%."
+                        "np. Jak wygląda współpraca z firmą? Jakie są terminy realizacji?"
                         if ui_language == "pl"
-                        else "e.g. How our solution helps reduce customer handling time by 30%."
+                        else "e.g. What does cooperation look like? What are typical delivery timelines?"
                     )
                 }
             )
@@ -277,24 +277,6 @@ class OrganizationForm(forms.ModelForm):
                 }
             )
 
-        if "featured_entry_type" in self.fields:
-            if ui_language == "pl":
-                self.fields["featured_entry_type"].choices = [
-                    ("", "Brak / pomiń"),
-                    (EntryType.UPDATE, "Aktualność"),
-                    (EntryType.FAQ, "FAQ"),
-                    (EntryType.GUIDE, "Poradnik"),
-                    (EntryType.CASE_STUDY, "Case study"),
-                ]
-            else:
-                self.fields["featured_entry_type"].choices = [
-                    ("", "None / skip"),
-                    (EntryType.UPDATE, "Update"),
-                    (EntryType.FAQ, "FAQ"),
-                    (EntryType.GUIDE, "Guide"),
-                    (EntryType.CASE_STUDY, "Case study"),
-                ]
-
         self._setup_full_visibility_labels(ui_language)
         self._setup_default_widget_styles()
         self._hydrate_visibility_initial_data(organization)
@@ -310,16 +292,14 @@ class OrganizationForm(forms.ModelForm):
             labels = {
                 "primary_language": "Domyślny język feedu",
                 "social_profiles_text": "Profile społecznościowe (linki)",
-                "featured_entry_type": "Materiał wiedzy o firmie (opcjonalnie) - typ",
-                "featured_entry_summary": "Materiał wiedzy o firmie (opcjonalnie) - krótki opis",
-                "featured_entry_url": "Materiał wiedzy o firmie (opcjonalnie) - link",
+                "featured_entry_summary": "Materiał wiedzy o firmie - FAQ",
+                "featured_entry_url": "Materiał wiedzy o firmie - link (opcjonalnie)",
             }
             helps = {
                 "primary_language": "To główny język feedu. Jest używany jako domyślny język opisów i fallback w kanałach AI.",
                 "social_profiles_text": "Wklej tylko te linki, które firma faktycznie posiada (po jednym w linii). Obsługiwane: Facebook, Instagram, LinkedIn, X, TikTok, YouTube.",
-                "featured_entry_type": "To opcjonalne. Wybierz, jeśli masz treść edukacyjną o firmie (FAQ/poradnik/case study/aktualność).",
-                "featured_entry_summary": "1-3 zdania: co klient znajdzie w materiale i dla kogo jest ta treść.",
-                "featured_entry_url": "Pełny adres URL do konkretnego artykułu, FAQ lub case study na Twojej stronie.",
+                "featured_entry_summary": "Wpisz pytania i odpowiedzi (FAQ) dotyczące firmy. Możesz użyć kilku linii.",
+                "featured_entry_url": "Pełny adres URL do strony z FAQ na Twojej stronie (jeśli istnieje).",
             }
             labels["ai_summary"] = "Dla jakich klient\u00f3w/projekt\u00f3w ta firma jest najlepsza?"
             helps["ai_summary"] = "Kr\u00f3tko opisz, dla jakich klient\u00f3w, bran\u017c albo projekt\u00f3w ta firma pasuje najlepiej."
@@ -327,18 +307,16 @@ class OrganizationForm(forms.ModelForm):
             labels = {
                 "primary_language": "Default feed language",
                 "social_profiles_text": "Social profiles (links)",
-                "featured_entry_type": "Knowledge content about the company (optional) - type",
-                "featured_entry_summary": "Knowledge content about the company (optional) - short summary",
+                "featured_entry_summary": "Knowledge content about the company - FAQ",
                 "ai_summary": "What clients/projects is this company best for?",
-                "featured_entry_url": "Knowledge content about the company (optional) - URL",
+                "featured_entry_url": "Knowledge content about the company - URL (optional)",
             }
             helps = {
                 "primary_language": "This is the default feed language used as primary description language and fallback in AI channels.",
                 "social_profiles_text": "Paste only existing profile links (one per line). Supported: Facebook, Instagram, LinkedIn, X, TikTok, YouTube.",
-                "featured_entry_type": "Optional. Use this if you have educational content such as FAQ, guide, case study, or update.",
-                "featured_entry_summary": "1-3 sentences about what users will learn and who the content is for.",
+                "featured_entry_summary": "Enter FAQ questions and answers about the company. You can use multiple lines.",
                 "ai_summary": "Briefly describe what kinds of clients, industries, or projects this company fits best.",
-                "featured_entry_url": "Direct URL to the article, FAQ, guide, or case study on your website.",
+                "featured_entry_url": "Direct URL to your FAQ page (if available).",
             }
 
         for field_name, label in labels.items():
@@ -383,7 +361,6 @@ class OrganizationForm(forms.ModelForm):
 
         featured_entry = org.content_entries.filter(is_featured=True).order_by("-published_at", "title").first()
         if featured_entry:
-            self.fields["featured_entry_type"].initial = featured_entry.entry_type
             self.fields["featured_entry_summary"].initial = featured_entry.localized_summary(org.primary_language)
             self.fields["featured_entry_url"].initial = featured_entry.content_url
 
@@ -497,14 +474,8 @@ class OrganizationForm(forms.ModelForm):
         if social_raw:
             self._parse_social_profiles_text(social_raw)
 
-        entry_type = (cleaned_data.get("featured_entry_type") or "").strip()
         entry_summary = (cleaned_data.get("featured_entry_summary") or "").strip()
         entry_url = (cleaned_data.get("featured_entry_url") or "").strip()
-        if (entry_summary or entry_url) and not entry_type:
-            raise forms.ValidationError(
-                "Wybierz rodzaj materiału wiedzy o firmie." if self.ui_language == "pl"
-                else "Select the knowledge content type."
-            )
         
         return cleaned_data
 
@@ -728,12 +699,11 @@ class OrganizationForm(forms.ModelForm):
         return parsed
 
     def _save_featured_entry(self, instance: Organization) -> None:
-        entry_type = (self.cleaned_data.get("featured_entry_type") or "").strip()
         summary = (self.cleaned_data.get("featured_entry_summary") or "").strip()
         content_url = (self.cleaned_data.get("featured_entry_url") or "").strip()
 
         featured_entry = instance.content_entries.filter(is_featured=True).order_by("-published_at", "title").first()
-        if not any([entry_type, summary, content_url]):
+        if not any([summary, content_url]):
             if featured_entry:
                 featured_entry.delete()
             return
@@ -741,7 +711,7 @@ class OrganizationForm(forms.ModelForm):
         if not featured_entry:
             featured_entry = ContentEntry(organization=instance, is_featured=True)
 
-        featured_entry.entry_type = entry_type or EntryType.UPDATE
+        featured_entry.entry_type = EntryType.FAQ
         featured_entry.title = self._build_featured_entry_title(instance, featured_entry.entry_type)
         featured_entry.content_url = content_url
 

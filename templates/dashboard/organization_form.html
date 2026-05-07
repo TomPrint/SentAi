@@ -142,31 +142,19 @@
             <details class="rounded-xl border border-[#00d4aa]/30 bg-white/[0.05] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
                 <summary class="mb-4 flex cursor-pointer list-none items-center justify-between gap-3">
                     <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-slate-200">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Materiał wiedzy o firmie{% else %}Knowledge content{% endif %}
+                        {% if request.LANGUAGE_CODE == 'pl' %}Materiał wiedzy o firmie - FAQ{% else %}Knowledge content - FAQ{% endif %}
                     </h3>
                     <span class="rounded border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#00d4aa]">{% if request.LANGUAGE_CODE == 'pl' %}opcjonalne{% else %}optional{% endif %}</span>
                 </summary>
                 <div class="grid gap-4 md:grid-cols-2">
-                        <label class="block space-y-2 md:col-span-2">
-                            <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.featured_entry_type.label }}</span>
-                            <div class="hidden">{{ form.featured_entry_type }}</div>
-                            <div id="featured-entry-type-picker" class="relative"></div>
-                            {% if form.featured_entry_type.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.featured_entry_type.help_text }}</small>{% endif %}
-                            {% if form.featured_entry_type.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.featured_entry_type.errors|striptags }}</small>{% endif %}
-                        </label>
+                        <div class="hidden">{{ form.featured_entry_type }}</div>
+                    <div class="hidden">{{ form.ai_summary }}</div>
 
                         <label class="block space-y-2 md:col-span-2">
                             <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.featured_entry_summary.label }}</span>
                             {{ form.featured_entry_summary }}
                             {% if form.featured_entry_summary.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.featured_entry_summary.help_text }}</small>{% endif %}
                             {% if form.featured_entry_summary.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.featured_entry_summary.errors|striptags }}</small>{% endif %}
-                        </label>
-
-                        <label class="block space-y-2 md:col-span-2">
-                            <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.ai_summary.label }}</span>
-                            {{ form.ai_summary }}
-                            {% if form.ai_summary.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.ai_summary.help_text }}</small>{% endif %}
-                            {% if form.ai_summary.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.ai_summary.errors|striptags }}</small>{% endif %}
                         </label>
 
                         <label class="block space-y-2 md:col-span-2">
@@ -260,8 +248,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const primaryLanguagePicker = document.getElementById('primary-language-picker');
     const companyTypeField = document.getElementById('id_company_type');
     const companyTypePicker = document.getElementById('company-type-picker');
-    const featuredEntryTypeField = document.getElementById('id_featured_entry_type');
-    const featuredEntryTypePicker = document.getElementById('featured-entry-type-picker');
 
     let selectedLanguages = [...config.selectedLanguages];
     let activeLanguage = selectedLanguages[0] || 'pl';
@@ -674,7 +660,6 @@ document.addEventListener('DOMContentLoaded', function() {
         renderLanguageSection(langCode);
     });
     renderCustomSelectPicker(companyTypeField, companyTypePicker);
-    renderCustomSelectPicker(featuredEntryTypeField, featuredEntryTypePicker);
     updateUI();
 });
 </script>
