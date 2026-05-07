@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static dashboard_extras %}
 
 {% block content %}
 {% if request.user.plan_tier != 'PRO' %}
@@ -38,7 +38,8 @@
                     </p>
                     <p class="mt-4">
                         Darmowy plan <b>BASIC</b> pozwala dodać podstawowe informacje i zaistnieć w świecie AI.
-                        <br>Plany <b>PLUS</b> i <b>PRO</b> odblokowują pełny potencjał — realnie zwiększają szansę, że AI wskaże właśnie Twoją firmę jako odpowiedź.
+                        <br>Plan <b>PLUS</b> dodaje Schema.org JSON-LD — AI może cytować Twoją firmę z bogatym kontekstem.
+                        <br>Plan <b>PRO</b> odblokowuje Markdown i llms.txt — profil wstrzykiwany wprost w kontekst LLM i widoczność w katalogu AI całej platformy.
                     </p>
                     <a class="mt-4 inline-flex min-h-10 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-5 py-2.5 font-mono text-sm font-semibold text-[#00d4aa] shadow-[0_0_20px_rgba(0,212,170,0.15)] transition hover:bg-[#00d4aa]/20" href="{% url 'dashboard:plan-update' %}">
                         {% if request.LANGUAGE_CODE == 'pl' %}Przejdź na wyższy plan{% else %}Upgrade your plan{% endif %}
@@ -53,7 +54,8 @@
                     </p>
                     <p class="mt-4">
                         The free <b>BASIC</b> plan lets you add essential information and get discovered by AI.
-                        <br><b>PLUS</b> and <b>PRO</b> unlock the full potential — significantly increasing the chances that AI will recommend your business.
+                        <br><b>PLUS</b> adds Schema.org JSON-LD — so AI can cite your business with rich, structured context.
+                        <br><b>PRO</b> unlocks Markdown and llms.txt — your profile injected directly into LLM context windows, and listed in the platform-wide AI discovery index.
                     </p>
                     <a class="mt-4 inline-flex min-h-10 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-5 py-2.5 font-mono text-sm font-semibold text-[#00d4aa] shadow-[0_0_20px_rgba(0,212,170,0.15)] transition hover:bg-[#00d4aa]/20" href="{% url 'dashboard:plan-update' %}">
                         {% if request.LANGUAGE_CODE == 'pl' %}Przejdź na wyższy plan{% else %}Upgrade your plan{% endif %}
@@ -116,9 +118,9 @@
             <ul class="space-y-2 font-mono text-xs text-slate-300 sm:text-sm">
                 <li>
                     {% if request.LANGUAGE_CODE == 'pl' %}
-                        • Tworzy nowoczesne formaty: <span class="text-[#00d4aa]">JSON</span>, <span class="text-[#00d4aa]">JSON-LD</span> i <span class="text-[#00d4aa]">llms.txt</span>.
+                        • Tworzy nowoczesne formaty: <span class="text-[#00d4aa]">JSON</span>, <span class="text-[#00d4aa]">JSON-LD</span>, <span class="text-[#00d4aa]">Markdown</span> i <span class="text-[#00d4aa]">llms.txt</span>.
                     {% else %}
-                        • Generates modern formats: <span class="text-[#00d4aa]">JSON</span>, <span class="text-[#00d4aa]">JSON-LD</span>, and <span class="text-[#00d4aa]">llms.txt</span>.
+                        • Generates modern formats: <span class="text-[#00d4aa]">JSON</span>, <span class="text-[#00d4aa]">JSON-LD</span>, <span class="text-[#00d4aa]">Markdown</span>, and <span class="text-[#00d4aa]">llms.txt</span>.
                     {% endif %}
                 </li>
                 <li>
@@ -126,6 +128,13 @@
                         • Porządkuje informacje o ofercie i marce tak, by AI mogło je cytować i rekomendować.
                     {% else %}
                         • Structures your offer and brand data so AI can cite and recommend it.
+                    {% endif %}
+                </li>
+                <li>
+                    {% if request.LANGUAGE_CODE == 'pl' %}
+                        • Profil Markdown wstrzykiwany wprost w kontekst LLM — AI czyta Twoją firmę tak, jak chcesz.
+                    {% else %}
+                        • Markdown profile injected directly into LLM context — AI reads your business your way.
                     {% endif %}
                 </li>
                 <li>
@@ -156,17 +165,7 @@
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h2 class="font-display text-xl font-semibold tracking-tight text-white">{{ organization.name }}</h2>
-                    <p class="mt-0.5 font-mono text-xs uppercase tracking-[0.18em] text-slate-500">
-                        {% if organization.company_type == 'manufacturing' %}
-                            {% if request.LANGUAGE_CODE == 'pl' %}produkcyjna{% else %}manufacturing{% endif %}
-                        {% elif organization.company_type == 'services' %}
-                            {% if request.LANGUAGE_CODE == 'pl' %}usługowa{% else %}services{% endif %}
-                        {% elif organization.company_type == 'trading' %}
-                            {% if request.LANGUAGE_CODE == 'pl' %}handlowa{% else %}trading{% endif %}
-                        {% else %}
-                            {% if request.LANGUAGE_CODE == 'pl' %}inna{% else %}other{% endif %}
-                        {% endif %}
-                    </p>
+                    <p class="mt-0.5 font-mono text-xs uppercase tracking-[0.18em] text-slate-500">{{ organization.company_type|company_type_label:request.LANGUAGE_CODE }}</p>
                 </div>
             </div>
             <dl class="mt-4 space-y-3 border-t border-white/[0.05] pt-4">
@@ -184,6 +183,9 @@
                         <a class="font-mono text-xs text-[#00d4aa] hover:text-[#00b090] hover:underline" href="{% url 'companies_api:public-company-json' organization.slug %}" target="_blank">company.json ↗</a>
                         {% if organization.supports_advanced_formats %}
                             <a class="font-mono text-xs text-[#00d4aa] hover:text-[#00b090] hover:underline" href="{% url 'companies_api:public-company-jsonld' organization.slug %}" target="_blank">company.jsonld ↗</a>
+                        {% endif %}
+                        {% if organization.supports_company_md %}
+                            <a class="font-mono text-xs text-[#00d4aa] hover:text-[#00b090] hover:underline" href="{% url 'companies_api:public-company-md' organization.slug %}" target="_blank">company.md ↗</a>
                         {% endif %}
                         {% if organization.supports_llms_txt %}
                             <a class="font-mono text-xs text-[#00d4aa] hover:text-[#00b090] hover:underline" href="{% url 'companies_api:public-company-llms' organization.slug %}" target="_blank">llms.txt ↗</a>

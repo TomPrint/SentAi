@@ -138,7 +138,7 @@
                         <div class="flex items-center justify-between font-mono text-[11px] text-slate-400">
                             <span>{% if request.LANGUAGE_CODE == 'pl' %}Kanały AI{% else %}AI channels{% endif %}</span>
                             <span class="font-semibold text-slate-200">
-                                {% if tier == 'BASIC' %}1{% elif tier == 'PLUS' %}2{% else %}3{% endif %}
+                                {% if tier == 'BASIC' %}1{% elif tier == 'PLUS' %}2{% else %}4{% endif %}
                             </span>
                         </div>
 
@@ -148,7 +148,7 @@
                             {% elif tier == 'PLUS' %}
                                 company.json + company.jsonld
                             {% else %}
-                                company.json + company.jsonld + llms.txt
+                                company.json + company.jsonld + company.md + llms.txt
                             {% endif %}
                         </div>
                     </div>

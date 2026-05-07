@@ -35,6 +35,10 @@ def public_feed_urls(organization, request=None) -> dict:
             reverse("companies_api:public-company-jsonld", kwargs={"slug": organization.slug}),
             request,
         ),
+        "company_md": absolute_url(
+            reverse("companies_api:public-company-md", kwargs={"slug": organization.slug}),
+            request,
+        ),
         "llms_txt": absolute_url(
             reverse("companies_api:public-company-llms", kwargs={"slug": organization.slug}),
             request,
@@ -220,6 +224,7 @@ def build_basic_feed(organization, request=None) -> dict:
                     "available_description_languages": list(descriptions.keys()),
                 },
                 "descriptions": descriptions,
+                "ai_summary": organization.ai_summary,
             },
             "discovery": {
                 "keywords": _company_keywords(organization),
@@ -232,11 +237,18 @@ def build_basic_feed(organization, request=None) -> dict:
                 "public": organization.public,
                 "allow_ai_indexing": organization.allow_ai_indexing,
             },
+            "provenance": {
+                "source_type": organization.source_type,
+                "source_url": organization.source_url,
+                "verification_status": organization.verification_status,
+                "verified_at": organization.verified_at.isoformat() if organization.verified_at else None,
+            },
             "ai_access": {
                 "subscription_tier": subscription.tier,
                 "available_formats": {
                     "company_json": True,
                     "company_jsonld": subscription.supports("advanced_formats"),
+                    "company_md": subscription.supports("company_md"),
                     "llms_txt": subscription.supports("llms_txt"),
                 },
                 "feed_urls": public_feed_urls(organization, request),
@@ -407,3 +419,104 @@ def build_llms_text(organization, request=None) -> str:
         sections.append("- No entries published")
 
     return "\n".join(sections).strip() + "\n"
+
+
+def build_markdown_feed(organization, request=None) -> str:
+    """Render a company profile as Markdown — optimised for LLM ingestion and RAG pipelines."""
+    descriptions = _description_payload(organization)
+    feed_urls = public_feed_urls(organization, request)
+
+    lines = [f"# {organization.name}", ""]
+
+    if organization.ai_summary:
+        lines += [f"> {organization.ai_summary}", ""]
+
+    description = (
+        organization.localized_text("long_description", organization.primary_language)
+        or organization.localized_text("short_description", organization.primary_language)
+    )
+    if description:
+        lines += ["## About", "", description, ""]
+
+    lines += ["## Company information", ""]
+    lines.append(f"- **Type:** {organization.get_company_type_display()}")
+    if organization.website_url:
+        lines.append(f"- **Website:** {organization.website_url}")
+    location = ", ".join(v for v in [organization.city, organization.country] if v)
+    if location:
+        lines.append(f"- **Location:** {location}")
+    if organization.owner.email:
+        lines.append(f"- **Email:** {organization.owner.email}")
+    if organization.phone_number:
+        lines.append(f"- **Phone:** {organization.phone_number}")
+    lines.append(f"- **Primary language:** {organization.primary_language}")
+    lines.append(f"- **Verification:** {organization.verification_status}")
+    lines.append(f"- **Last updated:** {organization.updated_at.date().isoformat()}")
+    lines.append("")
+
+    tags = list(organization.tags.all())
+    if tags:
+        lines += ["## Specializations", ""]
+        lines.extend(f"- {tag.name}" for tag in tags)
+        lines.append("")
+
+    products = _products_payload(organization)
+    if products:
+        lines += ["## Products & services", ""]
+        for product in products:
+            name = product.get("name", "")
+            desc = next(iter(product.get("descriptions", {}).values()), "")
+            price = product.get("price_from")
+            currency = product.get("currency", "")
+            url = product.get("product_url", "")
+            lines.append(f"### {name}")
+            if desc:
+                lines.append(desc)
+            details = []
+            if price:
+                details.append(f"From {price} {currency}".strip())
+            if url:
+                details.append(f"[More info]({url})")
+            if details:
+                lines.append(" · ".join(details))
+            lines.append("")
+
+    entries = list(organization.content_entries.all())
+    if entries:
+        lines += ["## Content & updates", ""]
+        for entry in entries:
+            summary = entry.localized_summary(organization.primary_language)
+            lines.append(f"### {entry.title} _{entry.get_entry_type_display()}_")
+            if summary:
+                lines.append(summary)
+            if entry.content_url:
+                lines.append(f"[Read more]({entry.content_url})")
+            lines.append("")
+
+    social = _social_profiles_payload(organization)
+    if social:
+        lines += ["## Social profiles", ""]
+        lines.extend(f"- [{p['label']}]({p['url']})" for p in social)
+        lines.append("")
+
+    if len(descriptions) > 1:
+        lines += ["## Descriptions by language", ""]
+        for lang, values in descriptions.items():
+            lines.append(f"### {lang.upper()}")
+            if values.get("short"):
+                lines.append(f"**Short:** {values['short']}")
+            if values.get("long"):
+                lines.append(f"**Long:** {values['long']}")
+            lines.append("")
+
+    lines += [
+        "## Machine-readable formats",
+        "",
+        f"- **JSON:** {feed_urls['company_json']}",
+        f"- **JSON-LD:** {feed_urls['company_jsonld']}",
+        f"- **Markdown:** {feed_urls['company_md']}",
+        f"- **LLMs.txt:** {feed_urls['llms_txt']}",
+        "",
+    ]
+
+    return "\n".join(lines).strip() + "\n"

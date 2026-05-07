@@ -9,6 +9,8 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+
 from .forms import ProfileForm, ProfilePasswordChangeForm, UserRegistrationForm
 from .serializers import CurrentUserSerializer, TokenLoginSerializer
 
@@ -56,6 +58,7 @@ class TokenLoginView(APIView):
         )
 
 
+@extend_schema(exclude=True)
 class CurrentUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

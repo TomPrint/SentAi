@@ -1,6 +1,11 @@
 from django.urls import path
 
 from .views import (
+    BulkAllJsonView,
+    CatalogNdjsonView,
+    CompanyDetailView,
+    CompanyListView,
+    CompanyUpdatesView,
     ContentEntryDetailView,
     ContentEntryListCreateView,
     OrganizationDetailView,
@@ -9,6 +14,7 @@ from .views import (
     ProductListCreateView,
     PublicCompanyJsonLdView,
     PublicCompanyJsonView,
+    PublicCompanyMarkdownView,
     PublicLLMsTextView,
     SocialProfileDetailView,
     SocialProfileListCreateView,
@@ -20,6 +26,9 @@ from .views import (
 app_name = "companies_api"
 
 urlpatterns = [
+    # -----------------------------------------------------------------
+    # Private management endpoints — authenticated, owner-scoped
+    # -----------------------------------------------------------------
     path("organizations/", OrganizationListCreateView.as_view(), name="organization-list"),
     path("organizations/<int:pk>/", OrganizationDetailView.as_view(), name="organization-detail"),
     path(
@@ -62,7 +71,24 @@ urlpatterns = [
         ContentEntryDetailView.as_view(),
         name="entry-detail",
     ),
+    # -----------------------------------------------------------------
+    # Public catalog — read-only, no authentication required
+    # -----------------------------------------------------------------
+    path("companies/", CompanyListView.as_view(), name="company-list"),
+    # updates/ must come before <slug:slug>/ to avoid slug capturing "updates"
+    path("companies/updates/", CompanyUpdatesView.as_view(), name="company-updates"),
+    path("companies/<slug:slug>/", CompanyDetailView.as_view(), name="company-detail"),
+    # -----------------------------------------------------------------
+    # Bulk access
+    # -----------------------------------------------------------------
+    path("public/all.json", BulkAllJsonView.as_view(), name="public-all-json"),
+    path("public/catalog.ndjson", CatalogNdjsonView.as_view(), name="public-catalog-ndjson"),
+    # -----------------------------------------------------------------
+    # Per-company structured formats
+    # -----------------------------------------------------------------
     path("public/<slug:slug>/company.json", PublicCompanyJsonView.as_view(), name="public-company-json"),
     path("public/<slug:slug>/company.jsonld", PublicCompanyJsonLdView.as_view(), name="public-company-jsonld"),
+    path("public/<slug:slug>/company.md", PublicCompanyMarkdownView.as_view(), name="public-company-md"),
     path("public/<slug:slug>/llms.txt", PublicLLMsTextView.as_view(), name="public-company-llms"),
 ]
+

@@ -4,8 +4,10 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from django.views.i18n import set_language
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from apps.accounts.views import RegisterView
+from apps.companies.views import SiteLLMsTextView
 
 admin.site.site_header = "SentAi Administration"
 admin.site.site_title = "SentAi Admin"
@@ -13,6 +15,12 @@ admin.site.index_title = "Platform management"
 
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
+    # OpenAPI schema + interactive docs (GET only by design)
+    path("openapi.json", SpectacularAPIView.as_view(), name="openapi-schema"),
+    path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="openapi-schema"), name="api-schema-swagger-ui"),
+    path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="openapi-schema"), name="api-schema-redoc"),
+    # Site-wide llms.txt for LLM crawlers
+    path("llms.txt", SiteLLMsTextView.as_view(), name="site-llms-txt"),
     path(
         "api/auth/",
         include(("apps.accounts.api_urls", "accounts_api"), namespace="accounts_api"),
