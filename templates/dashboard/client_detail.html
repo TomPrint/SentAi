@@ -1,216 +1,212 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<section class="relative overflow-hidden rounded-lg border border-white/[0.07] bg-[#0d1117] p-6 glow-teal">
-    <div class="pointer-events-none absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-[#00d4aa] to-transparent" aria-hidden="true"></div>
-    <div class="pointer-events-none absolute left-0 top-0 h-24 w-px bg-gradient-to-b from-[#00d4aa] to-transparent" aria-hidden="true"></div>
-    <div class="pointer-events-none absolute bottom-0 right-0 h-px w-24 bg-gradient-to-l from-[#6366f1]/60 to-transparent" aria-hidden="true"></div>
-    <div class="pointer-events-none absolute bottom-0 right-0 h-24 w-px bg-gradient-to-t from-[#6366f1]/60 to-transparent" aria-hidden="true"></div>
+<section class="rounded-xl border border-[#d9d9d9] bg-white p-6">
 
-    <div class="relative space-y-6">
+    <div class="space-y-6">
 
         <!-- Header -->
         <div class="flex items-start justify-between gap-4">
             <div>
-                <span class="inline-flex items-center gap-1.5 rounded border border-[#00d4aa]/30 bg-[#00d4aa]/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#00d4aa]">
-                    <span class="h-1.5 w-1.5 rounded-full bg-[#00d4aa] animate-pulse"></span>
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
+                    <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197]"></span>
                     {% if request.LANGUAGE_CODE == 'pl' %}Klient{% else %}Client{% endif %}
                 </span>
-                <h1 class="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
+                <h1 class="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-[#284b63] sm:text-4xl">
                     {{ client.company_name|default:client.email }}
                 </h1>
             </div>
             <a href="{% url 'dashboard:client-list' %}"
-               class="inline-flex min-h-9 items-center justify-center rounded border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs font-medium text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
-                ← {% if request.LANGUAGE_CODE == 'pl' %}Wróć{% else %}Back{% endif %}
+               class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
+                &#8592; {% if request.LANGUAGE_CODE == 'pl' %}Wr&#xF3;&#263;{% else %}Back{% endif %}
             </a>
         </div>
 
         <!-- Client info card -->
         <div class="grid gap-4 sm:grid-cols-3">
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}E-mail{% else %}Email{% endif %}
                 </p>
-                <p class="font-mono text-sm text-slate-200">{{ client.email }}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ client.email }}</p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}Plan{% else %}Plan{% endif %}
                 </p>
                 <p>
                     {% if client.plan_tier == 'PRO' %}
-                        <span class="inline-flex items-center rounded border border-[#6366f1]/30 bg-[#6366f1]/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#818cf8]">PRO</span>
+                        <span class="inline-flex items-center rounded-full border border-[#284b63]/30 bg-[#284b63]/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#284b63]">PRO</span>
                     {% elif client.plan_tier == 'PLUS' %}
-                        <span class="inline-flex items-center rounded border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#00d4aa]">PLUS</span>
+                        <span class="inline-flex items-center rounded-full border border-[#5ca197]/30 bg-[#5ca197]/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">PLUS</span>
                     {% else %}
-                        <span class="inline-flex items-center rounded border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-400">BASIC</span>
+                        <span class="inline-flex items-center rounded-full border border-[#d9d9d9] bg-[#f5f5f5] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/60">BASIC</span>
                     {% endif %}
                 </p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}Nazwa firmy{% else %}Company name{% endif %}
                 </p>
-                <p class="font-mono text-sm text-slate-200">{{ client.company_name|default:"—" }}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ client.company_name|default:"&#8212;" }}</p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}Klient od{% else %}Client since{% endif %}
                 </p>
-                <p class="font-mono text-sm text-slate-200">{{ client.date_joined|date:"Y-m-d H:i" }}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ client.date_joined|date:"Y-m-d H:i" }}</p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}Ostatnie logowanie{% else %}Last login{% endif %}
                 </p>
-                <p class="font-mono text-sm text-slate-200">{{ client.last_login|date:"Y-m-d H:i"|default:"—" }}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ client.last_login|date:"Y-m-d H:i"|default:"&#8212;" }}</p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}Zmiana planu{% else %}Plan changed{% endif %}
                 </p>
-                <p class="font-mono text-sm text-slate-200">{{ client.paid_plan_started_at|date:"Y-m-d H:i"|default:"—" }}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ client.paid_plan_started_at|date:"Y-m-d H:i"|default:"&#8212;" }}</p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5 sm:col-span-2">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5 sm:col-span-2">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}Opiekun{% else %}Account owner{% endif %}
                 </p>
-                <p class="font-mono text-sm text-slate-200">
+                <p class="font-mono text-sm text-[#353535]">
                     {% if client_seller %}
-                        {{ client_seller.username }}{% if client_seller.email %} · {{ client_seller.email }}{% endif %}
+                        {{ client_seller.username }}{% if client_seller.email %} &middot; {{ client_seller.email }}{% endif %}
                     {% else %}
-                        —
+                        &#8212;
                     {% endif %}
                 </p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}Kraj{% else %}Country{% endif %}
                 </p>
-                <p class="font-mono text-sm text-slate-200">{{ client.country|default:"—" }}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ client.country|default:"&#8212;" }}</p>
             </div>
         </div>
 
-        <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] p-4">
-            <h2 class="mb-4 font-mono text-[10px] uppercase tracking-widest text-slate-500">
+        <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-4">
+            <h2 class="mb-4 font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                 {% if request.LANGUAGE_CODE == 'pl' %}Dane kontaktowe{% else %}Contact details{% endif %}
             </h2>
             <div class="space-y-3">
                 <div>
-                    <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+                    <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                         {% if request.LANGUAGE_CODE == 'pl' %}Osoba kontaktowa{% else %}Contact person{% endif %}
                     </p>
-                    <p class="mt-1 text-sm text-slate-200">{{ client_prospect.contact_person|default:"—" }}</p>
+                    <p class="mt-1 text-sm text-[#353535]">{{ client_prospect.contact_person|default:"&#8212;" }}</p>
                 </div>
                 <div>
-                    <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+                    <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                         {% if request.LANGUAGE_CODE == 'pl' %}Telefon{% else %}Phone{% endif %}
                     </p>
-                    <p class="mt-1 text-sm text-slate-200">{{ client_phone_number|default:"—" }}</p>
+                    <p class="mt-1 text-sm text-[#353535]">{{ client_phone_number|default:"&#8212;" }}</p>
                 </div>
                 <div>
-                    <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+                    <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                         {% if request.LANGUAGE_CODE == 'pl' %}Adres{% else %}Address{% endif %}
                     </p>
-                    <p class="mt-1 text-sm text-slate-200">{{ client_address|default:"—" }}</p>
+                    <p class="mt-1 text-sm text-[#353535]">{{ client_address|default:"&#8212;" }}</p>
                 </div>
             </div>
         </div>
 
         <!-- Organizations / Pages -->
         <div>
-            <h2 class="mb-3 font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <h2 class="mb-3 font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                 {% if request.LANGUAGE_CODE == 'pl' %}Strony klienta{% else %}Client pages{% endif %}
-                <span class="ml-2 rounded bg-white/[0.06] px-1.5 py-0.5 text-slate-400">{{ organizations|length }}</span>
+                <span class="ml-2 rounded-full bg-[#f5f5f5] border border-[#d9d9d9] px-1.5 py-0.5 text-[#353535]/60">{{ organizations|length }}</span>
             </h2>
 
-            <div class="overflow-x-auto rounded-lg border border-white/[0.07]">
+            <div class="overflow-x-auto rounded-xl border border-[#d9d9d9]">
                 <table class="w-full text-left text-sm">
                     <thead>
-                        <tr class="border-b border-white/[0.07] bg-white/[0.03]">
-                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                        <tr class="border-b border-[#d9d9d9] bg-[#f8fafa]">
+                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Strona{% else %}Page{% endif %}
                             </th>
-                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
                                 {% if request.LANGUAGE_CODE == 'pl' %}WWW{% else %}Website{% endif %}
                             </th>
-                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Kontakt{% else %}Contact{% endif %}
                             </th>
-                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Widoczna{% else %}Public{% endif %}
                             </th>
-                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Weryfikacja{% else %}Verified{% endif %}
                             </th>
-                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
-                                {% if request.LANGUAGE_CODE == 'pl' %}Kanały{% else %}Feeds{% endif %}
+                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                                {% if request.LANGUAGE_CODE == 'pl' %}Kana&#322;y{% else %}Feeds{% endif %}
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-white/[0.04]">
+                    <tbody class="divide-y divide-[#d9d9d9]">
                         {% for item in organizations %}
-                        <tr class="transition hover:bg-white/[0.03]">
-                            <td class="px-4 py-3 text-slate-200">
+                        <tr class="transition hover:bg-[#f8fafa]">
+                            <td class="px-4 py-3 text-[#353535]">
                                 {{ item.organization.name }}
                             </td>
-                            <td class="px-4 py-3 font-mono text-slate-400">
+                            <td class="px-4 py-3 font-mono text-[#353535]/60">
                                 {% if item.organization.website_url %}
-                                    <a href="{{ item.organization.website_url }}" target="_blank" rel="noopener" class="text-[#00d4aa] hover:text-[#5eead4]">
+                                    <a href="{{ item.organization.website_url }}" target="_blank" rel="noopener" class="text-[#5ca197] hover:underline">
                                         {{ item.organization.website_url }}
                                     </a>
                                 {% else %}
-                                    —
+                                    &#8212;
                                 {% endif %}
                             </td>
-                            <td class="px-4 py-3 font-mono text-slate-400">
-                                {{ item.organization.phone_number|default:client.email|default:"—" }}
+                            <td class="px-4 py-3 font-mono text-[#353535]/60">
+                                {{ item.organization.phone_number|default:client.email|default:"&#8212;" }}
                             </td>
                             <td class="px-4 py-3">
                                 {% if item.organization.public %}
-                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-[#00d4aa]">
-                                        <span class="h-1.5 w-1.5 rounded-full bg-[#00d4aa]"></span>
+                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197]"></span>
                                         {% if request.LANGUAGE_CODE == 'pl' %}Tak{% else %}Yes{% endif %}
                                     </span>
                                 {% else %}
-                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-slate-500">
-                                        <span class="h-1.5 w-1.5 rounded-full bg-slate-600"></span>
+                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-[#d9d9d9]"></span>
                                         {% if request.LANGUAGE_CODE == 'pl' %}Nie{% else %}No{% endif %}
                                     </span>
                                 {% endif %}
                             </td>
                             <td class="px-4 py-3">
                                 {% if item.organization.verification_status == 'human_admin_verified' %}
-                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-[#00d4aa]">
-                                        <span class="h-1.5 w-1.5 rounded-full bg-[#00d4aa]"></span>
+                                    <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197]"></span>
                                         {% if request.LANGUAGE_CODE == 'pl' %}Zweryfikowana{% else %}Verified{% endif %}
                                     </span>
                                 {% else %}
-                                    <span class="font-mono text-[10px] uppercase tracking-widest text-slate-500">—</span>
+                                    <span class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">&#8212;</span>
                                 {% endif %}
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-2">
                                     <a href="{{ item.public_urls.company_json }}" target="_blank" rel="noopener"
-                                       class="inline-flex min-h-7 items-center justify-center rounded border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
+                                       class="inline-flex min-h-7 items-center justify-center rounded border border-[#d9d9d9] bg-white px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
                                         JSON
                                     </a>
                                     {% if item.supports_jsonld %}
                                         <a href="{{ item.public_urls.company_jsonld }}" target="_blank" rel="noopener"
-                                           class="inline-flex min-h-7 items-center justify-center rounded border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
+                                           class="inline-flex min-h-7 items-center justify-center rounded border border-[#d9d9d9] bg-white px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
                                             JSON-LD
                                         </a>
                                     {% endif %}
                                     {% if item.supports_company_md %}
                                         <a href="{{ item.public_urls.company_md }}" target="_blank" rel="noopener"
-                                           class="inline-flex min-h-7 items-center justify-center rounded border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
+                                           class="inline-flex min-h-7 items-center justify-center rounded border border-[#d9d9d9] bg-white px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
                                             MD
                                         </a>
                                     {% endif %}
                                     {% if item.supports_llms_txt %}
                                         <a href="{{ item.public_urls.llms_txt }}" target="_blank" rel="noopener"
-                                           class="inline-flex min-h-7 items-center justify-center rounded border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
+                                           class="inline-flex min-h-7 items-center justify-center rounded border border-[#d9d9d9] bg-white px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
                                             LLMs.txt
                                         </a>
                                     {% endif %}
@@ -219,7 +215,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="px-4 py-8 text-center font-mono text-sm text-slate-500">
+                            <td colspan="6" class="px-4 py-8 text-center font-mono text-sm text-[#353535]/40">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Brak uruchomionych stron.{% else %}No active pages.{% endif %}
                             </td>
                         </tr>

@@ -11,8 +11,8 @@
         margin: 0;
         border-radius: 9999px;
         position: relative;
-        border: 1px solid rgba(0, 212, 170, 0.55) !important;
-        background-color: #0d1117 !important;
+        border: 1px solid rgba(60, 110, 113, 0.55) !important;
+        background-color: #ffffff !important;
         background-image: none !important;
         box-shadow: none !important;
         outline: none !important;
@@ -26,17 +26,16 @@
         position: absolute;
         inset: 3px;
         border-radius: 9999px;
-        background: #00d4aa;
-        box-shadow: 0 0 8px rgba(0, 212, 170, 0.55);
+        background: #5ca197;
         transform: scale(0);
         transition: transform 120ms ease;
     }
 
     .plan-tier-radio:checked,
     input[type="radio"].plan-tier-radio:checked {
-        border-color: #00d4aa !important;
-        background-color: #0d1117 !important;
-        box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.16), 0 0 14px rgba(0, 212, 170, 0.22) !important;
+        border-color: #5ca197 !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 0 0 2px rgba(60, 110, 113, 0.18) !important;
     }
 
     .plan-tier-radio:checked::before,
@@ -47,20 +46,18 @@
     .plan-tier-radio:focus,
     .plan-tier-radio:focus-visible {
         outline: none !important;
-        box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.25), 0 0 12px rgba(0, 212, 170, 0.2) !important;
+        box-shadow: 0 0 0 2px rgba(60, 110, 113, 0.25) !important;
     }
 </style>
 
-<section class="relative overflow-hidden rounded-lg border border-white/[0.07] bg-[#0d1117] p-6 glow-teal lg:p-8">
-    <div class="pointer-events-none absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-[#00d4aa] to-transparent" aria-hidden="true"></div>
-    <div class="pointer-events-none absolute left-0 top-0 h-24 w-px bg-gradient-to-b from-[#00d4aa] to-transparent" aria-hidden="true"></div>
+<section class="rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
     <div class="mb-6 flex items-start justify-between gap-4">
         <div>
-            <span class="inline-flex items-center gap-1.5 rounded border border-[#00d4aa]/30 bg-[#00d4aa]/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#00d4aa]">Plan</span>
-            <h1 class="font-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                {% if request.LANGUAGE_CODE == 'pl' %}Zmień plan{% else %}Change plan{% endif %}
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">Plan</span>
+            <h1 class="font-display mt-3 text-3xl font-bold tracking-tight text-[#284b63] sm:text-4xl">
+                {% if request.LANGUAGE_CODE == 'pl' %}Zmie&#324; plan{% else %}Change plan{% endif %}
             </h1>
-            <p class="mt-2 font-mono text-xs text-slate-500">
+            <p class="mt-2 font-mono text-xs text-[#353535]/50">
                 {% if request.LANGUAGE_CODE == 'pl' %}
                     // wykorzystujesz {{ current_organization_count }}/{{ current_organization_limit }} stron
                 {% else %}
@@ -68,12 +65,12 @@
                 {% endif %}
             </p>
             {% if stripe_checkout_enabled %}
-                <p class="mt-2 font-mono text-[11px] text-slate-400">
+                <p class="mt-2 font-mono text-[11px] text-[#353535]/50">
                     {% if request.LANGUAGE_CODE == 'pl' %}
                         {% if stripe_test_mode %}
-                            // PLUS i PRO: płatność przez Stripe Checkout (tryb testowy)
+                            // PLUS i PRO: p&#322;atno&#347;&#263; przez Stripe Checkout (tryb testowy)
                         {% else %}
-                            // PLUS i PRO: płatność przez Stripe Checkout
+                            // PLUS i PRO: p&#322;atno&#347;&#263; przez Stripe Checkout
                         {% endif %}
                     {% else %}
                         {% if stripe_test_mode %}
@@ -84,9 +81,9 @@
                     {% endif %}
                 </p>
             {% else %}
-                <p class="mt-2 font-mono text-[11px] text-rose-400">
+                <p class="mt-2 font-mono text-[11px] text-rose-500">
                     {% if request.LANGUAGE_CODE == 'pl' %}
-                        // brak konfiguracji Stripe - płatności są wyłączone
+                        // brak konfiguracji Stripe - p&#322;atno&#347;ci s&#261; wy&#322;&#261;czone
                     {% else %}
                         // Stripe is not configured - payments are disabled
                     {% endif %}
@@ -100,31 +97,27 @@
         <div class="grid gap-3 sm:grid-cols-3">
             {% for radio in form.plan_tier %}
                 {% with tier=radio.data.value %}
-                <label class="group flex cursor-pointer flex-col gap-3 rounded-lg border border-white/[0.07] bg-white/[0.03] p-5 transition hover:border-[#00d4aa]/40 hover:bg-[#00d4aa]/5">
+                <label class="group flex cursor-pointer flex-col gap-3 rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-5 transition hover:border-[#5ca197]/50 hover:bg-white">
                     {{ radio.tag }}
-                    {% if tier == 'PLUS' or tier == 'PRO' %}
-                        <span class="font-display text-2xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#ff0080] via-[#ff1a8c] to-[#ff4da6] [text-shadow:0_0_2px_rgba(255,0,128,0.6),0_0_6px_rgba(255,0,128,0.4)]">{{ radio.choice_label }}</span>
-                    {% else %}
-                        <span class="font-display text-2xl font-semibold tracking-tight text-white">{{ radio.choice_label }}</span>
-                    {% endif %}
-                    <div class="space-y-1.5 rounded border border-white/10 bg-white/5 p-3">
-                        <div class="flex items-center justify-between font-mono text-[11px] text-slate-400">
+                    <span class="font-display text-2xl font-bold tracking-tight text-[#284b63]">{{ radio.choice_label }}</span>
+                    <div class="space-y-1.5 rounded-lg border border-[#d9d9d9] bg-white p-3">
+                        <div class="flex items-center justify-between font-mono text-[11px] text-[#353535]/50">
                             <span>{% if request.LANGUAGE_CODE == 'pl' %}Strony{% else %}Pages{% endif %}</span>
-                            <span class="font-semibold text-slate-200">
+                            <span class="font-semibold text-[#353535]">
                                 {% if tier == 'BASIC' %}1{% elif tier == 'PLUS' %}2{% else %}3{% endif %}
                             </span>
                         </div>
 
-                        <div class="flex items-center justify-between font-mono text-[11px] text-slate-400">
-                            <span>{% if request.LANGUAGE_CODE == 'pl' %}Języki{% else %}Languages{% endif %}</span>
-                            <span class="font-semibold text-slate-200">
+                        <div class="flex items-center justify-between font-mono text-[11px] text-[#353535]/50">
+                            <span>{% if request.LANGUAGE_CODE == 'pl' %}J&#281;zyki{% else %}Languages{% endif %}</span>
+                            <span class="font-semibold text-[#353535]">
                                 {% if tier == 'BASIC' %}1{% elif tier == 'PLUS' %}2{% else %}3{% endif %}
                             </span>
                         </div>
 
-                        <div class="flex items-center justify-between font-mono text-[11px] text-slate-400">
+                        <div class="flex items-center justify-between font-mono text-[11px] text-[#353535]/50">
                             <span>{% if request.LANGUAGE_CODE == 'pl' %}Cena{% else %}Price{% endif %}</span>
-                            <span class="font-semibold text-slate-200">
+                            <span class="font-semibold text-[#284b63]">
                                 {% if tier == 'BASIC' %}
                                     {% if request.LANGUAGE_CODE == 'pl' %}Darmowy{% else %}Free{% endif %}
                                 {% elif tier == 'PLUS' %}
@@ -135,14 +128,14 @@
                             </span>
                         </div>
 
-                        <div class="flex items-center justify-between font-mono text-[11px] text-slate-400">
-                            <span>{% if request.LANGUAGE_CODE == 'pl' %}Kanały AI{% else %}AI channels{% endif %}</span>
-                            <span class="font-semibold text-slate-200">
+                        <div class="flex items-center justify-between font-mono text-[11px] text-[#353535]/50">
+                            <span>{% if request.LANGUAGE_CODE == 'pl' %}Kana&#322;y AI{% else %}AI channels{% endif %}</span>
+                            <span class="font-semibold text-[#353535]">
                                 {% if tier == 'BASIC' %}1{% elif tier == 'PLUS' %}2{% else %}4{% endif %}
                             </span>
                         </div>
 
-                        <div class="font-mono text-[10px] leading-relaxed text-slate-500">
+                        <div class="font-mono text-[10px] leading-relaxed text-[#353535]/40">
                             {% if tier == 'BASIC' %}
                                 company.json
                             {% elif tier == 'PLUS' %}
@@ -158,20 +151,20 @@
         </div>
 
         {% if form.plan_tier.errors %}
-            <p class="mt-3 font-mono text-xs font-semibold text-rose-400">{{ form.plan_tier.errors|striptags }}</p>
+            <p class="mt-3 font-mono text-xs font-semibold text-rose-500">{{ form.plan_tier.errors|striptags }}</p>
         {% endif %}
 
         <div class="mt-6 flex flex-wrap gap-2">
-            <button class="inline-flex min-h-10 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-5 py-2.5 font-mono text-sm font-semibold text-[#00d4aa] shadow-[0_0_20px_rgba(0,212,170,0.15)] transition hover:bg-[#00d4aa]/20" type="submit">
+            <button class="inline-flex min-h-10 items-center justify-center rounded bg-[#284b63] px-5 py-2.5 font-sans text-sm font-semibold text-white shadow transition hover:bg-[#1e3a4f]" type="submit">
                 {% if request.LANGUAGE_CODE == 'pl' %}kontynuuj{% else %}continue{% endif %}
             </button>
-            <a class="inline-flex min-h-10 items-center justify-center rounded border border-white/10 bg-white/5 px-5 py-2.5 font-mono text-sm font-medium text-slate-300 transition hover:border-white/20 hover:text-white" href="{% url 'dashboard:home' %}">
-                {% if request.LANGUAGE_CODE == 'pl' %}wróć{% else %}back{% endif %}
+            <a class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-5 py-2.5 font-mono text-sm font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'dashboard:home' %}">
+                {% if request.LANGUAGE_CODE == 'pl' %}wr&#243;&#263;{% else %}back{% endif %}
             </a>
         </div>
-        <p class="mt-3 font-mono text-[11px] text-slate-500">
+        <p class="mt-3 font-mono text-[11px] text-[#353535]/40">
             {% if request.LANGUAGE_CODE == 'pl' %}
-                // BASIC aktywuje się od razu. PLUS/PRO przekierowują do Stripe Checkout.
+                // BASIC aktywuje si&#281; od razu. PLUS/PRO przekierowuj&#261; do Stripe Checkout.
             {% else %}
                 // BASIC is activated immediately. PLUS/PRO redirect to Stripe Checkout.
             {% endif %}

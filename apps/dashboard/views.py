@@ -22,6 +22,17 @@ from .forms import SellerCreateForm, UserPlanUpdateForm, ProspectClientForm, Pro
 from .forms import ProspectLinkClientForm
 
 
+class LandingView(TemplateView):
+    template_name = "landing.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["plus_price"] = settings.STRIPE_PLUS_PRICE_AMOUNT // 100
+        context["pro_price"] = settings.STRIPE_PRO_PRICE_AMOUNT // 100
+        context["stripe_currency"] = settings.STRIPE_CURRENCY.upper()
+        return context
+
+
 class UserOrganizationQuerysetMixin(LoginRequiredMixin):
     def get_queryset(self):
         queryset = Organization.objects.select_related("owner", "subscription")
