@@ -4,7 +4,7 @@
 <style>
     .client-link-picker-menu {
         scrollbar-width: thin;
-        scrollbar-color: rgba(0, 212, 170, 0.4) rgba(255, 255, 255, 0.05);
+        scrollbar-color: rgba(60, 110, 113, 0.4) rgba(255, 255, 255, 0.05);
     }
 
     .client-link-picker-menu::-webkit-scrollbar {
@@ -16,7 +16,7 @@
     }
 
     .client-link-picker-menu::-webkit-scrollbar-thumb {
-        background: rgba(0, 212, 170, 0.4);
+        background: rgba(60, 110, 113, 0.4);
         border-radius: 999px;
     }
 
@@ -25,56 +25,56 @@
     }
 </style>
 
-<section class="relative overflow-hidden rounded-lg border border-white/[0.07] bg-[#0d1117] p-6 glow-teal">
-    <div class="pointer-events-none absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-[#00d4aa] to-transparent" aria-hidden="true"></div>
-    <div class="pointer-events-none absolute left-0 top-0 h-24 w-px bg-gradient-to-b from-[#00d4aa] to-transparent" aria-hidden="true"></div>
+<section class="rounded-xl border border-[#d9d9d9] bg-white p-6">
+    <div class="pointer-events-none absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-[#5ca197] to-transparent" aria-hidden="true"></div>
+    <div class="pointer-events-none absolute left-0 top-0 h-24 w-px bg-gradient-to-b from-[#5ca197] to-transparent" aria-hidden="true"></div>
 
-    <div class="relative space-y-6">
+    <div class="space-y-6">
         <div class="flex items-start justify-between gap-4">
             <div>
-                <span class="inline-flex items-center gap-1.5 rounded border border-[#00d4aa]/30 bg-[#00d4aa]/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#00d4aa]">
-                    <span class="h-1.5 w-1.5 rounded-full bg-[#00d4aa] animate-pulse"></span>
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
+                    <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197] "></span>
                     {% if request.LANGUAGE_CODE == 'pl' %}Prospect{% else %}Prospect{% endif %}
                 </span>
-                <h1 class="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
+                <h1 class="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight text-[#284b63] sm:text-4xl">
                     {{ prospect.company_name }}
                 </h1>
-                <p class="mt-1 font-mono text-sm text-slate-400">{{ prospect.contact_person }} ({{ prospect.email }})</p>
+                <p class="mt-1 font-mono text-sm text-[#353535]/60">{{ prospect.contact_person }} ({{ prospect.email }})</p>
             </div>
             <a href="{% if request.user.is_superuser %}{% if prospect.registered_client %}{% url 'dashboard:client-detail' prospect.registered_client.pk %}{% else %}{% url 'dashboard:client-list' %}{% endif %}{% else %}{% url 'dashboard:seller-prospects' %}{% endif %}"
-               class="inline-flex min-h-9 items-center justify-center rounded border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs font-medium text-slate-300 transition hover:border-[#00d4aa]/40 hover:text-[#00d4aa]">
+               class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-[#f5f5f5] px-4 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197]/40 hover:text-[#5ca197]">
                 ← {% if request.LANGUAGE_CODE == 'pl' %}Wróć{% else %}Back{% endif %}
             </a>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2">
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">{% if request.LANGUAGE_CODE == 'pl' %}Nazwa firmy{% else %}Company{% endif %}</p>
-                <p class="font-mono text-sm text-slate-200">{{ prospect.company_name }}</p>
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">{% if request.LANGUAGE_CODE == 'pl' %}Nazwa firmy{% else %}Company{% endif %}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ prospect.company_name }}</p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">{% if request.LANGUAGE_CODE == 'pl' %}Telefon{% else %}Phone{% endif %}</p>
-                <p class="font-mono text-sm text-slate-200">{{ prospect.phone }}</p>
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">{% if request.LANGUAGE_CODE == 'pl' %}Telefon{% else %}Phone{% endif %}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ prospect.phone }}</p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">{% if request.LANGUAGE_CODE == 'pl' %}E-mail{% else %}Email{% endif %}</p>
-                <p class="font-mono text-sm text-slate-200">{{ prospect.email }}</p>
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">{% if request.LANGUAGE_CODE == 'pl' %}E-mail{% else %}Email{% endif %}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ prospect.email }}</p>
             </div>
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3 space-y-0.5">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">{% if request.LANGUAGE_CODE == 'pl' %}Sprzedawca{% else %}Seller{% endif %}</p>
-                <p class="font-mono text-sm text-slate-200">{{ prospect.seller.username }}</p>
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 space-y-0.5">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">{% if request.LANGUAGE_CODE == 'pl' %}Sprzedawca{% else %}Seller{% endif %}</p>
+                <p class="font-mono text-sm text-[#353535]">{{ prospect.seller.username }}</p>
             </div>
         </div>
 
-        <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-4 space-y-3">
+        <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-4 space-y-3">
             <div class="space-y-1">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     {% if request.LANGUAGE_CODE == 'pl' %}Powiązane konto klienta{% else %}Linked client account{% endif %}
                 </p>
                 {% if prospect.registered_client %}
-                    <p class="font-mono text-sm text-slate-200">{{ prospect.registered_client.email }}</p>
+                    <p class="font-mono text-sm text-[#353535]">{{ prospect.registered_client.email }}</p>
                 {% else %}
-                    <p class="font-mono text-xs text-slate-500">
+                    <p class="font-mono text-xs text-[#353535]/40">
                         {% if request.LANGUAGE_CODE == 'pl' %}Brak powiązania.{% else %}Not linked yet.{% endif %}
                     </p>
                 {% endif %}
@@ -86,12 +86,12 @@
                     <form method="post" action="{{ prospect_link_client_url }}" class="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
                         {% csrf_token %}
                         <div>
-                            <label class="mb-1 block font-mono text-[10px] uppercase tracking-widest text-slate-500" for="{{ link_client_form.registered_client.id_for_label }}">
+                            <label class="mb-1 block font-mono text-[10px] uppercase tracking-widest text-[#353535]/40" for="{{ link_client_form.registered_client.id_for_label }}">
                                 {{ link_client_form.registered_client.label }}
                             </label>
                             <div id="client-link-picker" class="relative min-w-full">
                                 <button type="button" id="client-link-trigger"
-                                        class="w-full inline-flex items-center justify-between rounded border border-[#00d4aa]/40 bg-[#0d1117] px-3 py-2 font-mono text-xs text-slate-200 transition hover:border-[#00d4aa]/60 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20">
+                                        class="w-full inline-flex items-center justify-between rounded border border-[#5ca197]/40 bg-[#0d1117] px-3 py-2 font-mono text-xs text-[#353535] transition hover:border-[#5ca197]/60 focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20">
                                     <span id="client-link-label">
                                         {% if prospect.registered_client %}
                                             {% firstof prospect.registered_client.company_name prospect.registered_client.get_full_name prospect.registered_client.username %}
@@ -99,14 +99,14 @@
                                             {% if request.LANGUAGE_CODE == 'pl' %}Wybierz klienta{% else %}Choose client{% endif %}
                                         {% endif %}
                                     </span>
-                                    <span class="text-[#00d4aa]">▾</span>
+                                    <span class="text-[#5ca197]">▾</span>
                                 </button>
 
                                 <div id="client-link-menu"
-                                     class="client-link-picker-menu absolute left-0 top-full z-30 mt-2 hidden max-h-56 w-full overflow-auto rounded border border-[#00d4aa]/40 bg-[#0d1117] p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
+                                     class="client-link-picker-menu absolute left-0 top-full z-30 mt-2 hidden max-h-56 w-full overflow-auto rounded border border-[#5ca197]/40 bg-[#0d1117] p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
                                     {% for client in link_client_form.fields.registered_client.queryset %}
                                         <button type="button"
-                                                class="client-link-option w-full rounded px-3 py-2 text-left font-mono text-xs text-slate-200 transition hover:bg-[#00d4aa]/20 hover:text-[#00d4aa]"
+                                                class="client-link-option w-full rounded px-3 py-2 text-left font-mono text-xs text-[#353535] transition hover:bg-[#5ca197]/20 hover:text-[#5ca197]"
                                                 data-value="{{ client.pk }}"
                                                 data-label="{% firstof client.company_name client.get_full_name client.username %}">
                                             {% firstof client.company_name client.get_full_name client.username %}
@@ -118,7 +118,7 @@
                             </div>
                         </div>
                         <button type="submit"
-                                class="inline-flex min-h-10 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-4 font-mono text-sm font-semibold text-[#00d4aa] transition hover:bg-[#00d4aa]/20">
+                                class="inline-flex min-h-10 items-center justify-center rounded border border-[#5ca197]/40 bg-[#5ca197]/10 px-4 font-mono text-sm font-semibold text-[#5ca197] transition hover:bg-[#5ca197]/20">
                             {% if request.LANGUAGE_CODE == 'pl' %}Zapisz powiązanie{% else %}Save link{% endif %}
                         </button>
                     </form>
@@ -127,21 +127,21 @@
         </div>
 
         {% if prospect.notes %}
-        <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-2">{% if request.LANGUAGE_CODE == 'pl' %}Notatki{% else %}Notes{% endif %}</p>
-            <p class="text-slate-300">{{ prospect.notes }}</p>
+        <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40 mb-2">{% if request.LANGUAGE_CODE == 'pl' %}Notatki{% else %}Notes{% endif %}</p>
+            <p class="text-[#353535]/70">{{ prospect.notes }}</p>
         </div>
         {% endif %}
 
         <div>
-            <h2 class="mb-3 font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <h2 class="mb-3 font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                 {% if request.LANGUAGE_CODE == 'pl' %}Aktywności{% else %}Activities{% endif %}
-                <span class="ml-2 rounded bg-white/[0.06] px-1.5 py-0.5 text-slate-400">{{ activities.count }}</span>
+                <span class="ml-2 rounded bg-white/[0.06] px-1.5 py-0.5 text-[#353535]/60">{{ activities.count }}</span>
             </h2>
 
-            <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] p-4 mb-4">
+            <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-4 mb-4">
                 <a href="{% url 'dashboard:prospect-activity-add' prospect.pk %}"
-                   class="inline-flex min-h-10 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-4 font-mono text-sm font-semibold text-[#00d4aa] transition hover:bg-[#00d4aa]/20">
+                   class="inline-flex min-h-10 items-center justify-center rounded border border-[#5ca197]/40 bg-[#5ca197]/10 px-4 font-mono text-sm font-semibold text-[#5ca197] transition hover:bg-[#5ca197]/20">
                     {% if request.LANGUAGE_CODE == 'pl' %}+ Dodaj aktywność{% else %}+ Add activity{% endif %}
                 </a>
             </div>
@@ -149,11 +149,11 @@
             {% if activities %}
             <div class="space-y-3">
                 {% for activity in activities %}
-                <div class="rounded-lg border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3">
                     <div class="flex items-start justify-between gap-3 mb-2">
                         <div class="flex items-center gap-2">
                             {% if activity.activity_type == 'call' %}
-                                <span class="inline-flex items-center justify-center h-6 w-6 rounded bg-[#00d4aa]/20 text-[#00d4aa]" title="{% if request.LANGUAGE_CODE == 'pl' %}Telefon{% else %}Phone call{% endif %}">
+                                <span class="inline-flex items-center justify-center h-6 w-6 rounded bg-[#5ca197]/20 text-[#5ca197]" title="{% if request.LANGUAGE_CODE == 'pl' %}Telefon{% else %}Phone call{% endif %}">
                                     ☎️
                                 </span>
                             {% elif activity.activity_type == 'email' %}
@@ -165,16 +165,16 @@
                                     🤝
                                 </span>
                             {% endif %}
-                            <p class="font-mono text-[10px] uppercase tracking-widest text-slate-500">{{ activity.activity_date|date:"Y-m-d" }}</p>
-                            <p class="font-mono text-[10px] text-slate-500">{{ activity.seller.username }}</p>
+                            <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">{{ activity.activity_date|date:"Y-m-d" }}</p>
+                            <p class="font-mono text-[10px] text-[#353535]/40">{{ activity.seller.username }}</p>
                         </div>
                     </div>
-                    <p class="text-slate-300">{{ activity.activity_description }}</p>
+                    <p class="text-[#353535]/70">{{ activity.activity_description }}</p>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <p class="font-mono text-xs text-slate-500 text-center py-8">
+            <p class="font-mono text-xs text-[#353535]/40 text-center py-8">
                 {% if request.LANGUAGE_CODE == 'pl' %}Brak aktywności.{% else %}No activities yet.{% endif %}
             </p>
             {% endif %}
@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             hiddenInput.value = option.dataset.value;
             label.textContent = option.dataset.label;
-            trigger.classList.add('border-[#00d4aa]', 'text-[#00d4aa]', 'shadow-[0_0_0_2px_rgba(0,212,170,0.15)]');
+            trigger.classList.add('border-[#5ca197]', 'text-[#5ca197]', 'shadow-[0_0_0_2px_rgba(0,212,170,0.15)]');
             menu.classList.add('hidden');
         });
     });

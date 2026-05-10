@@ -8,6 +8,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 
 from apps.accounts.views import RegisterView
 from apps.companies.views import SiteLLMsTextView
+from apps.dashboard.views import LandingView
 
 admin.site.site_header = "SentAi Administration"
 admin.site.site_title = "SentAi Admin"
@@ -37,7 +38,8 @@ urlpatterns += i18n_patterns(
         path("accounts/", include(("apps.accounts.urls", "accounts"), namespace="accounts")),
     path("set-language/", set_language, name="set_language_localized"),
     path("admin/", admin.site.urls),
-    path("", include(("apps.dashboard.urls", "dashboard"), namespace="dashboard")),
+    path("", LandingView.as_view(), name="landing"),
+    path("dashboard/", include(("apps.dashboard.urls", "dashboard"), namespace="dashboard")),
     prefix_default_language=False,
 )
 

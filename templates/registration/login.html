@@ -2,16 +2,12 @@
 {% load static %}
 
 {% block content %}
-<section class="mx-auto grid w-full max-w-6xl gap-4 overflow-hidden rounded-lg border border-white/[0.07] bg-[#0d1117] p-4 glow-teal lg:grid-cols-[1.2fr_0.8fr] lg:p-5">
-    <div class="pointer-events-none absolute left-0 top-0 h-px w-32 bg-gradient-to-r from-[#00d4aa] to-transparent" aria-hidden="true"></div>
-    <div class="pointer-events-none absolute left-0 top-0 h-32 w-px bg-gradient-to-b from-[#00d4aa] to-transparent" aria-hidden="true"></div>
+<section class="mx-auto grid w-full max-w-5xl gap-4 overflow-hidden rounded-xl border border-[#d9d9d9] bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_0.8fr] lg:p-5">
 
-    <div class="relative min-h-[280px] overflow-hidden rounded-lg border border-[#00d4aa]/35 bg-black/10 shadow-[0_0_0_1px_rgba(0,212,170,0.22),0_0_28px_rgba(0,212,170,0.14)] sm:min-h-[360px] lg:min-h-[520px]">
-        <div class="pointer-events-none absolute inset-0 rounded-lg border border-white/10" aria-hidden="true"></div>
-        <div class="pointer-events-none absolute right-0 top-4 hidden h-[calc(100%-2rem)] w-px bg-gradient-to-b from-transparent via-[#00d4aa]/55 to-transparent lg:block" aria-hidden="true"></div>
-        <div class="pointer-events-none absolute -right-1 top-4 hidden h-[calc(100%-2rem)] w-2 bg-[radial-gradient(circle,rgba(0,212,170,0.35)_0%,rgba(0,212,170,0.08)_45%,transparent_70%)] blur-[2px] lg:block" aria-hidden="true"></div>
+    <!-- Left: visual / brand panel -->
+    <div class="relative min-h-[260px] overflow-hidden rounded-xl border border-[#d9d9d9] bg-white sm:min-h-[340px] lg:min-h-[480px]">
         <video
-            class="h-full w-full object-cover opacity-70 brightness-110 contrast-110 saturate-110"
+            class="h-full w-full object-cover opacity-30 mix-blend-multiply"
             autoplay
             muted
             loop
@@ -22,39 +18,40 @@
             <source src="{% get_media_prefix %}movie_landing_page_2.mp4" type="video/mp4">
         </video>
 
-        <div class="pointer-events-none absolute inset-0 bg-gradient-to-tr from-[#0a0e14]/50 via-[#0a0e14]/25 to-transparent"></div>
+        <div class="absolute inset-0 bg-gradient-to-tr from-white/80 via-white/40 to-transparent"></div>
         <div class="absolute bottom-0 left-0 p-5 sm:p-7 lg:p-8">
-            <div class="inline-flex items-end gap-3 rounded border border-[#00d4aa]/45 bg-[#00d4aa]/12 px-4 py-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <div class="inline-flex items-end gap-2 font-display text-3xl font-bold tracking-tight text-[#284b63] sm:text-4xl lg:text-5xl">
                 <span>xoaila</span>
-                <span class="mb-1 h-3.5 w-3.5 rounded-full bg-[#00d4aa] shadow-[0_0_14px_rgba(0,212,170,0.95)] animate-pulse"></span>
+                <span class="mb-1 h-3 w-3 rounded-full bg-[#5ca197] shrink-0"></span>
             </div>
-            <p class="mt-4 max-w-xl font-display text-lg font-semibold leading-snug tracking-tight text-white sm:text-xl lg:text-2xl">
+            <p class="mt-4 max-w-xl font-display text-lg font-semibold leading-snug tracking-tight text-[#284b63] sm:text-xl lg:text-2xl">
                 {% if request.LANGUAGE_CODE == 'pl' %}
-                    Zadbaj o widoczność marki w AI i przejmij ruch z nowych źródeł wyszukiwania
+                    AI już odpowiada za klientów. Upewnij się, że zna Twoją firmę.
                 {% else %}
-                    Make your brand discoverable in AI and capture demand from next-gen search
+                    AI already answers for customers. Make sure it knows your company.
                 {% endif %}
             </p>
-            <p class="mt-2 max-w-xl font-mono text-[11px] text-slate-300 sm:text-xs">
+            <p class="mt-2 font-mono text-[11px] text-[#353535]/40">
                 {% if request.LANGUAGE_CODE == 'pl' %}
-                    Zarejestruj się i utwórz darmowe konto.
+                    AI-native data publishing
                 {% else %}
-                    Sign up and create a free account.
+                    AI-native data publishing
                 {% endif %}
             </p>
         </div>
     </div>
 
-    <div class="rounded-lg border border-white/[0.07] bg-white/[0.03] p-5 sm:p-6 lg:p-7">
-        <span class="inline-flex items-center gap-1.5 rounded border border-[#00d4aa]/30 bg-[#00d4aa]/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#00d4aa]">
-            <span class="h-1.5 w-1.5 rounded-full bg-[#00d4aa] animate-pulse"></span>
+    <!-- Right: login form -->
+    <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-5 sm:p-6 lg:p-7">
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197]"></span>
             {% if request.LANGUAGE_CODE == 'pl' %}Panel klienta{% else %}Client panel{% endif %}
         </span>
-        <h1 class="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
+        <h1 class="mt-3 font-display text-2xl font-bold leading-tight tracking-tight text-[#284b63] sm:text-3xl">
             {% if request.LANGUAGE_CODE == 'pl' %}
-                Zaloguj się do panelu klienta
+                Zaloguj się do panelu
             {% else %}
-                Sign in to the client panel
+                Sign in to your dashboard
             {% endif %}
         </h1>
 
@@ -62,41 +59,37 @@
             {% csrf_token %}
             <div class="grid gap-4">
                 {% for field in form %}
-                    <label class="block space-y-2">
-                        <span class="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ field.label }}</span>
+                    <label class="block space-y-1.5">
+                        <span class="font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ field.label }}</span>
                         {{ field }}
                         {% if field.errors %}
-                            <small class="block font-mono text-[10px] font-semibold text-rose-400">{{ field.errors|striptags }}</small>
+                            <small class="block font-mono text-[10px] font-semibold text-rose-500">{{ field.errors|striptags }}</small>
                         {% endif %}
                     </label>
                 {% endfor %}
             </div>
 
             {% if form.non_field_errors %}
-                <div class="mt-3 font-mono text-xs font-semibold text-rose-400">{{ form.non_field_errors|striptags }}</div>
+                <div class="mt-3 font-mono text-xs font-semibold text-rose-500">{{ form.non_field_errors|striptags }}</div>
             {% endif %}
 
-            <button class="mt-5 inline-flex min-h-10 w-full items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-5 py-2.5 font-mono text-sm font-semibold text-[#00d4aa] shadow-[0_0_20px_rgba(0,212,170,0.15)] transition hover:bg-[#00d4aa]/20" type="submit">
-                {% if request.LANGUAGE_CODE == 'pl' %}zaloguj{% else %}sign in{% endif %}
+            <button class="mt-5 inline-flex min-h-10 w-full items-center justify-center rounded bg-[#284b63] px-5 py-2.5 font-sans text-sm font-semibold text-white shadow transition hover:bg-[#1e3a4f]" type="submit">
+                {% if request.LANGUAGE_CODE == 'pl' %}Zaloguj się{% else %}Sign in{% endif %}
             </button>
 
-            <p class="mt-4 text-center font-mono text-xs text-slate-500">
+            <p class="mt-4 text-center font-mono text-xs text-[#353535]/50">
                 {% if request.LANGUAGE_CODE == 'pl' %}
                     Nie masz konta?
                 {% else %}
                     No account yet?
                 {% endif %}
-                <a class="text-[#00d4aa] hover:text-[#00b090] hover:underline" href="{% url 'register' %}">
+                <a class="text-[#5ca197] hover:text-[#2e5558] hover:underline" href="{% url 'register' %}">
                     {% if request.LANGUAGE_CODE == 'pl' %}Zarejestruj się{% else %}Create one{% endif %}
                 </a>
             </p>
 
-            <p class="mt-4 font-mono text-[10px] text-slate-600">
-                {% if request.LANGUAGE_CODE == 'pl' %}
-                    // API token → <code class="text-slate-500">/api/auth/login/</code>
-                {% else %}
-                    // API token → <code class="text-slate-500">/api/auth/login/</code>
-                {% endif %}
+            <p class="mt-4 font-mono text-[10px] text-[#353535]/35">
+                // API token → <code>/api/auth/login/</code>
             </p>
         </form>
     </div>

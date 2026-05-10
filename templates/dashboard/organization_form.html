@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<section class="relative overflow-visible rounded-lg border border-white/[0.07] bg-[#0d1117] p-6 glow-teal lg:p-8">
-    <div class="pointer-events-none absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-[#00d4aa] to-transparent" aria-hidden="true"></div>
-    <div class="pointer-events-none absolute left-0 top-0 h-24 w-px bg-gradient-to-b from-[#00d4aa] to-transparent" aria-hidden="true"></div>
+<section class="relative overflow-visible rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
+    <div class="pointer-events-none absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-[#5ca197] to-transparent" aria-hidden="true"></div>
+    <div class="pointer-events-none absolute left-0 top-0 h-24 w-px bg-gradient-to-b from-[#5ca197] to-transparent" aria-hidden="true"></div>
     <div class="mb-6 flex items-start justify-between gap-4">
         <div>
-            <span class="inline-flex items-center gap-1.5 rounded border border-[#00d4aa]/30 bg-[#00d4aa]/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#00d4aa]">
+            <span class="inline-flex items-center gap-1.5 rounded border border-[#5ca197]/30 bg-[#5ca197]/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
                 {% if request.LANGUAGE_CODE == 'pl' %}Domena{% else %}Domain{% endif %}
             </span>
-            <h1 class="font-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h1 class="font-display mt-3 text-[#353535]/40xl font-semibold tracking-tight text-[#284b63] sm:text-[#353535]/40xl">
                 {% if object %}
                     {% if request.LANGUAGE_CODE == 'pl' %}Edytuj domenę{% else %}Edit domain{% endif %}
                 {% else %}
@@ -26,107 +26,107 @@
             </div>
         {% endif %}
         <div class="space-y-8">
-            <details class="rounded-xl border border-[#00d4aa]/30 bg-white/[0.05] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
+            <details class="rounded-xl border border-[#5ca197]/30 bg-[#f5f5f5] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
                 <summary class="mb-4 flex cursor-pointer list-none items-center justify-between gap-3">
-                    <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-slate-200">
+                    <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-[#353535]">
                         {% if request.LANGUAGE_CODE == 'pl' %}Dane podstawowe{% else %}Basic details{% endif %}
                     </h3>
-                    <span class="rounded border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#00d4aa]">
+                    <span class="rounded border border-[#5ca197]/30 bg-[#5ca197]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">
                         {% if request.LANGUAGE_CODE == 'pl' %}sekcja{% else %}section{% endif %}
                     </span>
                 </summary>
                 <div class="grid gap-4 md:grid-cols-2">
                     <label class="block space-y-2 md:col-span-2">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.name.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.name.label }}</span>
                         {{ form.name }}
-                        {% if form.name.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.name.help_text }}</small>{% endif %}
+                        {% if form.name.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.name.help_text }}</small>{% endif %}
                         {% if form.name.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.name.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <label class="block space-y-2 md:col-span-2">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.company_type.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.company_type.label }}</span>
                         <div class="hidden">{{ form.company_type }}</div>
                         <div id="company-type-picker" class="relative"></div>
-                        {% if form.company_type.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.company_type.help_text }}</small>{% endif %}
+                        {% if form.company_type.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.company_type.help_text }}</small>{% endif %}
                         {% if form.company_type.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.company_type.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <label class="block space-y-2 md:col-span-2">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.website_url.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.website_url.label }}</span>
                         {{ form.website_url }}
-                        {% if form.website_url.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.website_url.help_text }}</small>{% endif %}
+                        {% if form.website_url.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.website_url.help_text }}</small>{% endif %}
                         {% if form.website_url.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.website_url.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <label class="block space-y-2 md:col-span-2">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.contact_email.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.contact_email.label }}</span>
                         {{ form.contact_email }}
-                        {% if form.contact_email.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.contact_email.help_text }}</small>{% endif %}
+                        {% if form.contact_email.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.contact_email.help_text }}</small>{% endif %}
                         {% if form.contact_email.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.contact_email.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <label class="block space-y-2 md:col-span-2">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.phone_number.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.phone_number.label }}</span>
                         {{ form.phone_number }}
-                        {% if form.phone_number.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.phone_number.help_text }}</small>{% endif %}
+                        {% if form.phone_number.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.phone_number.help_text }}</small>{% endif %}
                         {% if form.phone_number.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.phone_number.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <label class="block space-y-2 md:col-span-2">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.address_line.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.address_line.label }}</span>
                         {{ form.address_line }}
-                        {% if form.address_line.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.address_line.help_text }}</small>{% endif %}
+                        {% if form.address_line.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.address_line.help_text }}</small>{% endif %}
                         {% if form.address_line.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.address_line.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <label class="block space-y-2 md:col-span-1">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.city.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.city.label }}</span>
                         {{ form.city }}
-                        {% if form.city.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.city.help_text }}</small>{% endif %}
+                        {% if form.city.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.city.help_text }}</small>{% endif %}
                         {% if form.city.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.city.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <label class="block space-y-2 md:col-span-1">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.postal_code.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.postal_code.label }}</span>
                         {{ form.postal_code }}
-                        {% if form.postal_code.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.postal_code.help_text }}</small>{% endif %}
+                        {% if form.postal_code.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.postal_code.help_text }}</small>{% endif %}
                         {% if form.postal_code.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.postal_code.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <label class="block space-y-2 md:col-span-2">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.country.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.country.label }}</span>
                         {{ form.country }}
-                        {% if form.country.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.country.help_text }}</small>{% endif %}
+                        {% if form.country.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.country.help_text }}</small>{% endif %}
                         {% if form.country.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.country.errors|striptags }}</small>{% endif %}
                     </label>
                 </div>
             </details>
 
-            <details class="rounded-xl border border-[#00d4aa]/30 bg-white/[0.05] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
+            <details class="rounded-xl border border-[#5ca197]/30 bg-[#f5f5f5] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
                 <summary class="mb-4 flex cursor-pointer list-none items-center justify-between gap-3">
-                    <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-slate-200">
+                    <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-[#353535]">
                         {% if request.LANGUAGE_CODE == 'pl' %}Języki feedu i opisy{% else %}Feed languages and descriptions{% endif %}
                     </h3>
-                    <span class="rounded border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#00d4aa]">
+                    <span class="rounded border border-[#5ca197]/30 bg-[#5ca197]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">
                         {% if request.LANGUAGE_CODE == 'pl' %}sekcja{% else %}section{% endif %}
                     </span>
                 </summary>
 
                 <div class="mb-5 grid gap-4 md:grid-cols-2 md:items-start">
                     <label class="block space-y-2 self-start">
-                        <span class="inline-flex h-5 w-full items-center gap-2 whitespace-nowrap font-mono text-xs font-medium uppercase leading-5 tracking-widest text-slate-400">{{ form.primary_language.label }}</span>
+                        <span class="inline-flex h-5 w-full items-center gap-2 whitespace-nowrap font-mono text-xs font-medium uppercase leading-5 tracking-widest text-[#353535]/60">{{ form.primary_language.label }}</span>
                         <div class="hidden">{{ form.primary_language }}</div>
                         <div id="primary-language-picker" class="relative"></div>
-                        {% if form.primary_language.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.primary_language.help_text }}</small>{% endif %}
+                        {% if form.primary_language.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.primary_language.help_text }}</small>{% endif %}
                         {% if form.primary_language.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.primary_language.errors|striptags }}</small>{% endif %}
                     </label>
 
                     <div class="space-y-2 self-start">
-                        <span class="inline-flex h-5 w-full items-center gap-2 whitespace-nowrap font-mono text-xs font-medium uppercase leading-5 tracking-widest text-slate-400">
+                        <span class="inline-flex h-5 w-full items-center gap-2 whitespace-nowrap font-mono text-xs font-medium uppercase leading-5 tracking-widest text-[#353535]/60">
                             {% if request.LANGUAGE_CODE == 'pl' %}Dodaj kolejny język{% else %}Add another language{% endif %}
                         </span>
                         <div id="add-language-buttons" class="w-full pt-0"></div>
-                        <small class="block font-mono text-[10px] text-slate-500">
+                        <small class="block font-mono text-[10px] text-[#353535]/40">
                             {% if request.LANGUAGE_CODE == 'pl' %}Możesz dodać język(y) zgodnie z limitem planu.{% else %}You can add language(s) within your plan limit.{% endif %}
                         </small>
                     </div>
@@ -139,44 +139,44 @@
                 </div>
             </details>
 
-            <details class="rounded-xl border border-[#00d4aa]/30 bg-white/[0.05] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
+            <details class="rounded-xl border border-[#5ca197]/30 bg-[#f5f5f5] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
                 <summary class="mb-4 flex cursor-pointer list-none items-center justify-between gap-3">
-                    <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-slate-200">
+                    <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-[#353535]">
                         {% if request.LANGUAGE_CODE == 'pl' %}Materiał wiedzy o firmie - FAQ{% else %}Knowledge content - FAQ{% endif %}
                     </h3>
-                    <span class="rounded border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#00d4aa]">{% if request.LANGUAGE_CODE == 'pl' %}opcjonalne{% else %}optional{% endif %}</span>
+                    <span class="rounded border border-[#5ca197]/30 bg-[#5ca197]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">{% if request.LANGUAGE_CODE == 'pl' %}opcjonalne{% else %}optional{% endif %}</span>
                 </summary>
                 <div class="grid gap-4 md:grid-cols-2">
                         <div class="hidden">{{ form.featured_entry_type }}</div>
                     <div class="hidden">{{ form.ai_summary }}</div>
 
                         <label class="block space-y-2 md:col-span-2">
-                            <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.featured_entry_summary.label }}</span>
+                            <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.featured_entry_summary.label }}</span>
                             {{ form.featured_entry_summary }}
-                            {% if form.featured_entry_summary.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.featured_entry_summary.help_text }}</small>{% endif %}
+                            {% if form.featured_entry_summary.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.featured_entry_summary.help_text }}</small>{% endif %}
                             {% if form.featured_entry_summary.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.featured_entry_summary.errors|striptags }}</small>{% endif %}
                         </label>
 
                         <label class="block space-y-2 md:col-span-2">
-                            <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.featured_entry_url.label }}</span>
+                            <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.featured_entry_url.label }}</span>
                             {{ form.featured_entry_url }}
-                            {% if form.featured_entry_url.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.featured_entry_url.help_text }}</small>{% endif %}
+                            {% if form.featured_entry_url.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.featured_entry_url.help_text }}</small>{% endif %}
                             {% if form.featured_entry_url.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.featured_entry_url.errors|striptags }}</small>{% endif %}
                         </label>
                 </div>
             </details>
 
-            <details class="rounded-xl border border-[#00d4aa]/30 bg-white/[0.05] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
+            <details class="rounded-xl border border-[#5ca197]/30 bg-[#f5f5f5] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(0,212,170,0.10)]">
                 <summary class="mb-4 flex cursor-pointer list-none items-center justify-between gap-3">
-                    <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-slate-200">
+                    <h3 class="font-mono text-sm font-semibold uppercase tracking-widest text-[#353535]">
                         {% if request.LANGUAGE_CODE == 'pl' %}Media społecznościowe{% else %}Social media{% endif %}
                     </h3>
-                    <span class="rounded border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#00d4aa]">{% if request.LANGUAGE_CODE == 'pl' %}opcjonalne{% else %}optional{% endif %}</span>
+                    <span class="rounded border border-[#5ca197]/30 bg-[#5ca197]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">{% if request.LANGUAGE_CODE == 'pl' %}opcjonalne{% else %}optional{% endif %}</span>
                 </summary>
                 <label class="block space-y-2 md:col-span-2">
-                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-slate-400">{{ form.social_profiles_text.label }}</span>
+                        <span class="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">{{ form.social_profiles_text.label }}</span>
                         {{ form.social_profiles_text }}
-                        {% if form.social_profiles_text.help_text %}<small class="block font-mono text-[10px] text-slate-500">{{ form.social_profiles_text.help_text }}</small>{% endif %}
+                        {% if form.social_profiles_text.help_text %}<small class="block font-mono text-[10px] text-[#353535]/40">{{ form.social_profiles_text.help_text }}</small>{% endif %}
                         {% if form.social_profiles_text.errors %}<small class="block font-mono text-[10px] font-semibold text-rose-400">{{ form.social_profiles_text.errors|striptags }}</small>{% endif %}
                 </label>
             </details>
@@ -186,15 +186,15 @@
         <input type="hidden" id="id_content_languages" name="content_languages" value="[]">
 
         <div class="mt-6 flex flex-wrap gap-2">
-            <button class="inline-flex min-h-10 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-5 py-2.5 font-mono text-sm font-semibold text-[#00d4aa] shadow-[0_0_20px_rgba(0,212,170,0.15)] transition hover:bg-[#00d4aa]/20" type="submit">
+            <button class="inline-flex min-h-10 items-center justify-center rounded border border-[#5ca197]/40 bg-[#5ca197]/10 px-5 py-2.5 font-mono text-sm font-semibold text-[#5ca197] shadow-[0_0_20px_rgba(0,212,170,0.15)] transition hover:bg-[#5ca197]/20" type="submit">
                 {% if request.LANGUAGE_CODE == 'pl' %}zapisz{% else %}save{% endif %}
             </button>
-            <a class="inline-flex min-h-10 items-center justify-center rounded border border-white/10 bg-white/5 px-5 py-2.5 font-mono text-sm font-medium text-slate-300 transition hover:border-white/20 hover:text-white" href="{% url 'dashboard:home' %}">
+            <a class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-[#f5f5f5] px-5 py-2.5 font-mono text-sm font-medium text-[#353535]/70 transition hover:border-[#d9d9d9] hover:text-[#284b63]" href="{% url 'dashboard:home' %}">
                 {% if request.LANGUAGE_CODE == 'pl' %}wróć{% else %}back{% endif %}
             </a>
         </div>
     </form>
-    <p class="mt-6 font-mono text-[10px] text-slate-600">
+    <p class="mt-6 font-mono text-[10px] text-[#353535]/30">
         {% if request.LANGUAGE_CODE == 'pl' %}
             // Wersja FULL: w tym formularzu uzupełniasz dane domeny, słowa kluczowe, profile social, główny produkt i wyróżniony wpis do kanałów AI.
         {% else %}
@@ -310,12 +310,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const productsValue = config.initialLanguageProducts[langCode] || '';
 
         const section = document.createElement('div');
-        section.className = 'language-section space-y-3 rounded border border-[#00d4aa]/25 bg-white/[0.05] p-4 shadow-[0_2px_6px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(0,212,170,0.08)]';
+        section.className = 'language-section space-y-3 rounded border border-[#5ca197]/25 bg-[#f5f5f5] p-4 shadow-[0_2px_6px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(0,212,170,0.08)]';
         section.dataset.language = langCode;
 
         section.innerHTML = `
             <div class="flex items-center gap-2">
-                <h4 class="font-mono text-xs font-medium uppercase tracking-widest text-slate-300">${langLabel}</h4>
+                <h4 class="font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/70">${langLabel}</h4>
                 ${selectedLanguages.length > 1 ? `
                     <button type="button" class="remove-language-btn inline-flex min-h-8 items-center justify-center rounded border border-rose-400/40 bg-rose-500/20 px-3 py-1 font-mono text-xs font-semibold text-rose-300 transition hover:bg-rose-500/30" data-language="${langCode}">
                         ${text.remove}
@@ -324,43 +324,43 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
 
             <label class="block space-y-1">
-                <span class="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">
+                <span class="font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">
                     ${text.shortDescription}
                 </span>
                 <input type="text" name="short_description_${langCode}" value="${shortValue}" maxlength="280" 
                       placeholder="${text.shortDescriptionPlaceholder}"
-                       class="w-full rounded border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-white placeholder-slate-500 transition hover:border-white/20 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20">
-                <small class="block font-mono text-[10px] text-slate-500">${helps.short_description}</small>
+                       class="w-full rounded border border-[#d9d9d9] bg-[#f5f5f5] px-3 py-2 font-mono text-sm text-[#284b63] placeholder-slate-500 transition hover:border-[#d9d9d9] focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20">
+                <small class="block font-mono text-[10px] text-[#353535]/40">${helps.short_description}</small>
             </label>
 
             <label class="block space-y-1">
-                <span class="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">
+                <span class="font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">
                     ${text.longDescription}
                 </span>
                 <textarea name="long_description_${langCode}" rows="5" 
                           placeholder="${text.longDescriptionPlaceholder}"
-                          class="w-full rounded border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-white placeholder-slate-500 transition hover:border-white/20 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20">${longValue}</textarea>
-                <small class="block font-mono text-[10px] text-slate-500">${helps.long_description}</small>
+                          class="w-full rounded border border-[#d9d9d9] bg-[#f5f5f5] px-3 py-2 font-mono text-sm text-[#284b63] placeholder-slate-500 transition hover:border-[#d9d9d9] focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20">${longValue}</textarea>
+                <small class="block font-mono text-[10px] text-[#353535]/40">${helps.long_description}</small>
             </label>
 
             <label class="block space-y-1">
-                <span class="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">
+                <span class="font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">
                     ${text.languageKeywords}
                 </span>
                 <input type="text" name="tags_${langCode}" value="${tagsValue}"
                       placeholder="${text.languageKeywordsPlaceholder}"
-                       class="w-full rounded border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-white placeholder-slate-500 transition hover:border-white/20 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20">
-                <small class="block font-mono text-[10px] text-slate-500">${text.languageKeywordsHelp}</small>
+                       class="w-full rounded border border-[#d9d9d9] bg-[#f5f5f5] px-3 py-2 font-mono text-sm text-[#284b63] placeholder-slate-500 transition hover:border-[#d9d9d9] focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20">
+                <small class="block font-mono text-[10px] text-[#353535]/40">${text.languageKeywordsHelp}</small>
             </label>
 
             <label class="block space-y-1">
-                <span class="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">
+                <span class="font-mono text-xs font-medium uppercase tracking-widest text-[#353535]/60">
                     ${text.languageProducts}
                 </span>
                 <textarea name="products_${langCode}" rows="5"
                           placeholder="${text.languageProductsPlaceholder}"
-                          class="w-full rounded border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-white placeholder-slate-500 transition hover:border-white/20 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20">${productsValue}</textarea>
-                <small class="block font-mono text-[10px] text-slate-500">${text.languageProductsHelp}</small>
+                          class="w-full rounded border border-[#d9d9d9] bg-[#f5f5f5] px-3 py-2 font-mono text-sm text-[#284b63] placeholder-slate-500 transition hover:border-[#d9d9d9] focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20">${productsValue}</textarea>
+                <small class="block font-mono text-[10px] text-[#353535]/40">${text.languageProductsHelp}</small>
             </label>
         `;
 
@@ -386,8 +386,8 @@ document.addEventListener('DOMContentLoaded', function() {
             tabButton.type = 'button';
             const isActive = langCode === activeLanguage;
             tabButton.className = isActive
-                ? 'inline-flex min-h-9 items-center justify-center rounded border border-[#00d4aa]/60 bg-[#00d4aa]/15 px-3 py-1.5 font-mono text-xs font-semibold text-[#00d4aa]'
-                : 'inline-flex min-h-9 items-center justify-center rounded border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-xs font-medium text-slate-300 hover:border-[#00d4aa]/40 hover:text-[#00d4aa]';
+                ? 'inline-flex min-h-9 items-center justify-center rounded border border-[#5ca197]/60 bg-[#5ca197]/15 px-3 py-1.5 font-mono text-xs font-semibold text-[#5ca197]'
+                : 'inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-[#f5f5f5] px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 hover:border-[#5ca197]/40 hover:text-[#5ca197]';
             tabButton.textContent = config.languageLabels[langCode] || langCode.toUpperCase();
             tabButton.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -438,22 +438,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const trigger = document.createElement('button');
         trigger.type = 'button';
-        trigger.className = 'h-10 w-full inline-flex items-center justify-between rounded border border-[#00d4aa]/40 bg-[#0d1117] px-3 font-mono text-xs text-slate-200 transition hover:border-[#00d4aa]/60 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20';
-        trigger.innerHTML = `<span>${text.chooseLanguage}</span><span class="text-[#00d4aa]">▾</span>`;
+        trigger.className = 'h-10 w-full inline-flex items-center justify-between rounded border border-[#5ca197]/40 bg-[#ffffff] px-3 font-mono text-xs text-[#353535] transition hover:border-[#5ca197]/60 focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20';
+        trigger.innerHTML = `<span>${text.chooseLanguage}</span><span class="text-[#5ca197]">▾</span>`;
 
         const menu = document.createElement('div');
-        menu.className = 'language-picker-menu absolute left-0 top-full z-30 mt-2 hidden max-h-56 w-full overflow-auto rounded border border-[#00d4aa]/40 bg-[#0d1117] p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)]';
+        menu.className = 'language-picker-menu absolute left-0 top-full z-30 mt-2 hidden max-h-56 w-full overflow-auto rounded border border-[#5ca197]/40 bg-[#ffffff] p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)]';
 
         unavailable.forEach((langCode) => {
             const optionBtn = document.createElement('button');
             optionBtn.type = 'button';
-            optionBtn.className = 'w-full rounded px-3 py-2 text-left font-mono text-xs text-slate-200 transition hover:bg-[#00d4aa]/20 hover:text-[#00d4aa]';
+            optionBtn.className = 'w-full rounded px-3 py-2 text-left font-mono text-xs text-[#353535] transition hover:bg-[#5ca197]/20 hover:text-[#5ca197]';
             optionBtn.textContent = config.languageLabels[langCode] || langCode;
             optionBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 selectedLanguage = langCode;
-                trigger.classList.add('border-[#00d4aa]','text-[#00d4aa]','shadow-[0_0_0_2px_rgba(0,212,170,0.15)]');
-                trigger.innerHTML = `<span>${config.languageLabels[langCode] || langCode}</span><span class="text-[#00d4aa]">▾</span>`;
+                trigger.classList.add('border-[#5ca197]','text-[#5ca197]','shadow-[0_0_0_2px_rgba(0,212,170,0.15)]');
+                trigger.innerHTML = `<span>${config.languageLabels[langCode] || langCode}</span><span class="text-[#5ca197]">▾</span>`;
                 menu.classList.add('hidden');
             });
             menu.appendChild(optionBtn);
@@ -482,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const addBtn = document.createElement('button');
         addBtn.type = 'button';
-        addBtn.className = 'inline-flex h-10 shrink-0 items-center justify-center rounded border border-[#00d4aa]/40 bg-[#00d4aa]/10 px-4 font-mono text-xs font-semibold text-[#00d4aa] transition hover:bg-[#00d4aa]/20';
+        addBtn.className = 'inline-flex h-10 shrink-0 items-center justify-center rounded border border-[#5ca197]/40 bg-[#5ca197]/10 px-4 font-mono text-xs font-semibold text-[#5ca197] transition hover:bg-[#5ca197]/20';
         addBtn.textContent = text.addLanguage;
 
         addBtn.addEventListener('click', (e) => {
@@ -515,10 +515,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const trigger = document.createElement('button');
         trigger.type = 'button';
-        trigger.className = 'h-10 w-full inline-flex items-center justify-between rounded border border-[#00d4aa]/40 bg-[#0d1117] px-3 font-mono text-xs text-slate-200 transition hover:border-[#00d4aa]/60 focus:border-[#00d4aa] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/20';
+        trigger.className = 'h-10 w-full inline-flex items-center justify-between rounded border border-[#5ca197]/40 bg-[#ffffff] px-3 font-mono text-xs text-[#353535] transition hover:border-[#5ca197]/60 focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20';
 
         const menu = document.createElement('div');
-        menu.className = 'language-picker-menu absolute left-0 top-full z-30 mt-2 hidden max-h-56 w-full overflow-auto rounded border border-[#00d4aa]/40 bg-[#0d1117] p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)]';
+        menu.className = 'language-picker-menu absolute left-0 top-full z-30 mt-2 hidden max-h-56 w-full overflow-auto rounded border border-[#5ca197]/40 bg-[#ffffff] p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)]';
 
         function getSelectedOption() {
             return options.find((option) => option.value === field.value) || options[0];
@@ -526,14 +526,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function updateTrigger() {
             const selectedOption = getSelectedOption();
-            trigger.innerHTML = `<span>${selectedOption.textContent}</span><span class="text-[#00d4aa]">▾</span>`;
-            trigger.classList.add('border-[#00d4aa]', 'text-[#00d4aa]', 'shadow-[0_0_0_2px_rgba(0,212,170,0.15)]');
+            trigger.innerHTML = `<span>${selectedOption.textContent}</span><span class="text-[#5ca197]">▾</span>`;
+            trigger.classList.add('border-[#5ca197]', 'text-[#5ca197]', 'shadow-[0_0_0_2px_rgba(0,212,170,0.15)]');
         }
 
         options.forEach((option) => {
             const optionBtn = document.createElement('button');
             optionBtn.type = 'button';
-            optionBtn.className = 'w-full rounded px-3 py-2 text-left font-mono text-xs text-slate-200 transition hover:bg-[#00d4aa]/20 hover:text-[#00d4aa]';
+            optionBtn.className = 'w-full rounded px-3 py-2 text-left font-mono text-xs text-[#353535] transition hover:bg-[#5ca197]/20 hover:text-[#5ca197]';
             optionBtn.textContent = option.textContent;
             optionBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', function() {
             buttonsContainer.appendChild(row);
         } else {
             const limitInfo = document.createElement('div');
-            limitInfo.className = 'rounded border border-[#00d4aa]/25 bg-[#00d4aa]/10 px-3 py-2 font-mono text-[11px] text-slate-200';
+            limitInfo.className = 'rounded border border-[#5ca197]/25 bg-[#5ca197]/10 px-3 py-2 font-mono text-[11px] text-[#353535]';
             limitInfo.textContent = text.languageLimitReached;
             buttonsContainer.appendChild(limitInfo);
         }
