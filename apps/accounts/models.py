@@ -39,6 +39,7 @@ class User(AbstractUser):
         choices=UserPlanTier.choices,
         default=UserPlanTier.BASIC,
     )
+    plan_selected_at = models.DateTimeField(blank=True, null=True)
     paid_plan_started_at = models.DateTimeField(blank=True, null=True)
     country = models.CharField(max_length=120, blank=True)
 
@@ -51,9 +52,14 @@ class User(AbstractUser):
     def organization_limit(self) -> int:
         return USER_PLAN_ORGANIZATION_LIMITS.get(self.plan_tier, 1)
 
+    def has_selected_plan(self) -> bool:
+        return self.plan_selected_at is not None
+
     def can_add_organization(self, current_count: int | None = None) -> bool:
         if self.is_superuser:
             return True
+        if not self.has_selected_plan():
+            return False
         organization_count = current_count
         if organization_count is None:
             organization_count = self.organizations.count()

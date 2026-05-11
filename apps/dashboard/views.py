@@ -82,10 +82,16 @@ class OrganizationCreateView(UserOrganizationQuerysetMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated and not self.can_create_organization():
-            if request.LANGUAGE_CODE == "pl":
-                messages.warning(request, "Osiągnięto limit stron dla Twojego planu.")
+            if not request.user.has_selected_plan():
+                if request.LANGUAGE_CODE == "pl":
+                    messages.warning(request, "Najpierw wybierz plan, aby dodać stronę firmy.")
+                else:
+                    messages.warning(request, "Choose a plan first to add a company page.")
             else:
-                messages.warning(request, "Your plan page limit has been reached.")
+                if request.LANGUAGE_CODE == "pl":
+                    messages.warning(request, "Osiągnięto limit stron dla Twojego planu.")
+                else:
+                    messages.warning(request, "Your plan page limit has been reached.")
             return redirect("dashboard:home")
         return super().dispatch(request, *args, **kwargs)
 
@@ -235,8 +241,10 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
 
     def form_valid(self, form):
         selected_tier = form.cleaned_data["plan_tier"]
+        user = self.request.user
+        has_selected_plan = user.has_selected_plan()
 
-        if self.request.user.plan_tier == selected_tier:
+        if user.plan_tier == selected_tier and has_selected_plan:
             if self.request.LANGUAGE_CODE == "pl":
                 messages.info(self.request, "Wybrany plan jest już aktywny.")
             else:
@@ -244,9 +252,11 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
             return super().form_valid(form)
 
         if selected_tier == UserPlanTier.BASIC:
-            self.request.user.plan_tier = selected_tier
-            self.request.user.paid_plan_started_at = None
-            self.request.user.save(update_fields=["plan_tier", "paid_plan_started_at"])
+            user.plan_tier = selected_tier
+            user.paid_plan_started_at = None
+            if user.plan_selected_at is None:
+                user.plan_selected_at = timezone.now()
+            user.save(update_fields=["plan_tier", "paid_plan_started_at", "plan_selected_at"])
             Subscription.objects.filter(organization__owner=self.request.user).update(tier=selected_tier)
             if self.request.LANGUAGE_CODE == "pl":
                 messages.success(self.request, "Plan został zaktualizowany.")
@@ -350,11 +360,13 @@ class PlanCheckoutSuccessView(LoginRequiredMixin, View):
                 messages.warning(request, "Payment has not been confirmed yet.")
             return redirect("dashboard:plan-update")
 
-        if request.user.plan_tier != selected_tier:
+        if request.user.plan_tier != selected_tier or request.user.plan_selected_at is None:
             request.user.plan_tier = selected_tier
             if request.user.paid_plan_started_at is None:
                 request.user.paid_plan_started_at = timezone.now()
-            request.user.save(update_fields=["plan_tier", "paid_plan_started_at"])
+            if request.user.plan_selected_at is None:
+                request.user.plan_selected_at = timezone.now()
+            request.user.save(update_fields=["plan_tier", "paid_plan_started_at", "plan_selected_at"])
             Subscription.objects.filter(organization__owner=request.user).update(tier=selected_tier)
 
         if request.LANGUAGE_CODE == "pl":

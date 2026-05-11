@@ -228,9 +228,12 @@
                 {% endif %}
             </p>
         </div>
+        
+        {% comment %} Step flow section {% endcomment %}
+        {% include 'partials/step_flow.html' %}
 
         <!-- Feature bullets grid -->
-        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-16">
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-16 mt-16">
             <!-- Bullet 1 -->
             <div class="rounded-xl border border-[#d9d9d9] bg-white p-6 hover:border-[#5ca197]/40 hover:shadow-sm transition">
                 <div class="mb-4 h-10 w-10 rounded-lg bg-[#284b63]/8 flex items-center justify-center">
@@ -293,47 +296,6 @@
                         Create JSON, JSON-LD, Markdown and llms.txt endpoints without technical chaos
                     {% endif %}
                 </p>
-            </div>
-        </div>
-
-        <!-- Step flow -->
-        <div class="mx-auto max-w-4xl">
-            <div class="grid gap-0 sm:grid-cols-3">
-                <!-- Step 1 -->
-                <div class="relative flex flex-col items-center text-center p-6">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#284b63] bg-white font-display text-lg font-bold text-[#284b63] mb-4 shrink-0">1</div>
-                    <!-- connector line -->
-                    <div class="absolute top-10 left-[calc(50%+24px)] hidden sm:block h-0.5 w-[calc(100%-48px)] bg-[#d9d9d9]"></div>
-                    <h3 class="font-display text-base font-semibold text-[#284b63] mb-2">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Uzupełnij profil firmy{% else %}Complete company profile{% endif %}
-                    </h3>
-                    <p class="font-sans text-sm text-[#353535]/60 leading-relaxed">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Wprowadź dane, opis, produkty i kanały kontaktu.{% else %}Enter your data, description, products and contact channels.{% endif %}
-                    </p>
-                </div>
-
-                <!-- Step 2 -->
-                <div class="relative flex flex-col items-center text-center p-6">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#5ca197] bg-[#5ca197] font-display text-lg font-bold text-white mb-4 shrink-0">2</div>
-                    <div class="absolute top-10 left-[calc(50%+24px)] hidden sm:block h-0.5 w-[calc(100%-48px)] bg-[#d9d9d9]"></div>
-                    <h3 class="font-display text-base font-semibold text-[#284b63] mb-2">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Xoaila generuje dane AI-ready{% else %}Xoaila generates AI-ready data{% endif %}
-                    </h3>
-                    <p class="font-sans text-sm text-[#353535]/60 leading-relaxed">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Automatycznie tworzy wszystkie formaty: JSON, JSON-LD, Markdown, llms.txt.{% else %}Automatically creates all formats: JSON, JSON-LD, Markdown, llms.txt.{% endif %}
-                    </p>
-                </div>
-
-                <!-- Step 3 -->
-                <div class="relative flex flex-col items-center text-center p-6">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#284b63] bg-white font-display text-lg font-bold text-[#284b63] mb-4 shrink-0">3</div>
-                    <h3 class="font-display text-base font-semibold text-[#284b63] mb-2">
-                        {% if request.LANGUAGE_CODE == 'pl' %}AI widzi Twoją firmę{% else %}AI sees your company{% endif %}
-                    </h3>
-                    <p class="font-sans text-sm text-[#353535]/60 leading-relaxed">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Modele AI mogą analizować, cytować i rekomendować Twoją firmę.{% else %}AI models can analyze, cite and recommend your company.{% endif %}
-                    </p>
-                </div>
             </div>
         </div>
 

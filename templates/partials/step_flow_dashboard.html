@@ -1,0 +1,92 @@
+<!-- Step flow (dashboard interactive) -->
+<section class="space-y-6">
+    <span class="inline-flex items-center gap-1.5 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
+        <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197]"></span>
+        {% if request.LANGUAGE_CODE == 'pl' %}Twoje kroki do widoczności AI{% else %}Your steps to AI visibility{% endif %}
+    </span>
+
+    <div class="mx-auto max-w-7xl">
+        <div class="relative space-y-6 lg:grid lg:grid-cols-5 lg:gap-6 lg:space-y-0">
+        <div class="pointer-events-none absolute left-[10%] right-[10%] top-5 hidden h-0.5 bg-[#d9d9d9] lg:block"></div>
+
+        <!-- Step 1 -->
+        <div class="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
+            <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#284b63] bg-white font-display text-base font-bold text-[#284b63] lg:left-1/2 lg:-translate-x-1/2">1</div>
+            <div class="absolute bottom-[-1.5rem] left-5 top-10 w-0.5 bg-[#d9d9d9] lg:hidden"></div>
+            <h3 class="mb-2 font-display text-base font-semibold text-[#284b63]">
+                {% if request.LANGUAGE_CODE == 'pl' %}Zarejestrowano konto{% else %}Account registered{% endif %}
+            </h3>
+            <p class="font-sans text-sm leading-relaxed text-[#353535]/60">
+                {% if request.LANGUAGE_CODE == 'pl' %}Krok wykonany.{% else %}Step completed.{% endif %}
+            </p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
+            <a href="{% url 'dashboard:plan-update' %}"
+               class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#5ca197]/30 lg:left-1/2 lg:-translate-x-1/2 {% if not request.user.plan_selected_at %}border-[#5ca197] bg-[#5ca197] text-white{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}"
+               aria-label="{% if request.LANGUAGE_CODE == 'pl' %}{% if request.user.plan_selected_at and request.user.plan_tier == 'BASIC' %}Ulepsz swój plan{% else %}Wybierz plan{% endif %}{% else %}{% if request.user.plan_selected_at and request.user.plan_tier == 'BASIC' %}Upgrade your plan{% else %}Choose plan{% endif %}{% endif %}">2</a>
+            <div class="absolute bottom-[-1.5rem] left-5 top-10 w-0.5 bg-[#d9d9d9] lg:hidden"></div>
+            <h3 class="mb-2 font-display text-base font-semibold text-[#284b63]">
+                {% if request.LANGUAGE_CODE == 'pl' %}
+                    {% if request.user.plan_selected_at and request.user.plan_tier == 'BASIC' %}Ulepsz swój plan{% else %}Wybierz plan{% endif %}
+                {% else %}
+                    {% if request.user.plan_selected_at and request.user.plan_tier == 'BASIC' %}Upgrade your plan{% else %}Choose plan{% endif %}
+                {% endif %}
+            </h3>
+            <p class="font-sans text-sm leading-relaxed text-[#353535]/60">
+                {% if request.LANGUAGE_CODE == 'pl' %}
+                    {% if not request.user.plan_selected_at %}Ten krok czeka na Ciebie.{% elif request.user.plan_tier == 'BASIC' %}Krok wykonany. Możesz przejść dalej albo ulepszyć plan.{% else %}Krok wykonany.{% endif %}
+                {% else %}
+                    {% if not request.user.plan_selected_at %}This step is waiting for you.{% elif request.user.plan_tier == 'BASIC' %}Step completed. You can continue or upgrade your plan.{% else %}Step completed.{% endif %}
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
+            {% if can_create_organization %}
+                <a href="{% url 'dashboard:organization-create' %}"
+                   class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#5ca197]/30 lg:left-1/2 lg:-translate-x-1/2 {% if request.user.plan_selected_at and organization_count == 0 %}border-[#5ca197] bg-[#5ca197] text-white{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}"
+                   aria-label="{% if request.LANGUAGE_CODE == 'pl' %}Dodaj stronę firmy{% else %}Add company page{% endif %}">3</a>
+            {% else %}
+                <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold lg:left-1/2 lg:-translate-x-1/2 border-[#284b63] bg-white text-[#284b63]">3</div>
+            {% endif %}
+            <div class="absolute bottom-[-1.5rem] left-5 top-10 w-0.5 bg-[#d9d9d9] lg:hidden"></div>
+            <h3 class="mb-2 font-display text-base font-semibold text-[#284b63]">
+                {% if request.LANGUAGE_CODE == 'pl' %}Dodaj stronę firmy{% else %}Add company page{% endif %}
+            </h3>
+            <p class="font-sans text-sm leading-relaxed text-[#353535]/60">
+                {% if request.LANGUAGE_CODE == 'pl' %}
+                    {% if request.user.plan_selected_at and organization_count == 0 %}Ten krok czeka na Ciebie.{% elif organization_count > 0 %}Krok wykonany.{% else %}Najpierw wybierz plan.{% endif %}
+                {% else %}
+                    {% if request.user.plan_selected_at and organization_count == 0 %}This step is waiting for you.{% elif organization_count > 0 %}Step completed.{% else %}Select a plan first.{% endif %}
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
+            <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold lg:left-1/2 lg:-translate-x-1/2 {% if organization_count > 0 %}border-[#5ca197] bg-[#5ca197] text-white ring-1 ring-[#5ca197]/40 shadow-[0_0_0_4px_rgba(92,161,151,0.22),0_10px_20px_rgba(46,85,88,0.2)]{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}">4</div>
+            <div class="absolute bottom-[-1.5rem] left-5 top-10 w-0.5 bg-[#d9d9d9] lg:hidden"></div>
+            <h3 class="mb-2 font-display text-base font-semibold text-[#284b63]">
+                {% if request.LANGUAGE_CODE == 'pl' %}Xoaila generuje dane AI-ready{% else %}Xoaila generates AI-ready data{% endif %}
+            </h3>
+            <p class="font-sans text-sm leading-relaxed text-[#353535]/60">
+                {% if request.LANGUAGE_CODE == 'pl' %}Automatycznie tworzy wszystkie formaty: JSON, JSON-LD, Markdown, llms.txt.{% else %}Automatically creates all formats: JSON, JSON-LD, Markdown, llms.txt.{% endif %}
+            </p>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
+            <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold lg:left-1/2 lg:-translate-x-1/2 {% if organization_count > 0 %}border-[#5ca197] bg-[#5ca197] text-white ring-1 ring-[#5ca197]/40 shadow-[0_0_0_4px_rgba(92,161,151,0.22),0_10px_20px_rgba(46,85,88,0.2)]{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}">5</div>
+            <h3 class="mb-2 font-display text-base font-semibold text-[#284b63]">
+                {% if request.LANGUAGE_CODE == 'pl' %}AI widzi Twoją firmę{% else %}AI sees your company{% endif %}
+            </h3>
+            <p class="font-sans text-sm leading-relaxed text-[#353535]/60">
+                {% if request.LANGUAGE_CODE == 'pl' %}Modele AI mogą analizować, cytować i rekomendować Twoją firmę.{% else %}AI models can analyze, cite and recommend your company.{% endif %}
+            </p>
+        </div>
+    </div>
+    </div>
+</section>
