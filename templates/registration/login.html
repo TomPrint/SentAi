@@ -7,7 +7,7 @@
     <!-- Left: visual / brand panel -->
     <div class="relative min-h-[260px] overflow-hidden rounded-xl border border-[#d9d9d9] bg-white sm:min-h-[340px] lg:min-h-[480px]">
         <video
-            class="h-full w-full object-cover opacity-30 mix-blend-multiply"
+            class="h-full w-full object-cover opacity-20 mix-blend-multiply"
             autoplay
             muted
             loop
@@ -18,7 +18,7 @@
             <source src="{% get_media_prefix %}movie_landing_page_2.mp4" type="video/mp4">
         </video>
 
-        <div class="absolute inset-0 bg-gradient-to-tr from-white/80 via-white/40 to-transparent"></div>
+        <div class="absolute inset-0 bg-gradient-to-tr from-white/80 via-white/10 to-white/30"></div>
         <div class="absolute bottom-0 left-0 p-5 sm:p-7 lg:p-8">
             <div class="inline-flex items-end gap-2 font-display text-3xl font-bold tracking-tight text-[#284b63] sm:text-4xl lg:text-5xl">
                 <span>xoaila</span>
@@ -88,9 +88,9 @@
                 </a>
             </p>
 
-            <p class="mt-4 font-mono text-[10px] text-[#353535]/35">
+            {% comment %} <p class="mt-4 font-mono text-[10px] text-[#353535]/35">
                 // API token → <code>/api/auth/login/</code>
-            </p>
+            </p> {% endcomment %}
         </form>
     </div>
 </section>

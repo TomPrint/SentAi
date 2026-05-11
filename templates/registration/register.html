@@ -15,20 +15,28 @@
                 Create a new account
             {% endif %}
         </h1>
+        <div class="hidden lg:block">
+            <img
+                src="/media/register_form_new_user_img.png"
+                alt="{% if request.LANGUAGE_CODE == 'pl' %}Ilustracja rejestracji nowego użytkownika{% else %}New user registration illustration{% endif %}"
+                class="w-full max-w-xl rounded-lg border border-[#d9d9d9] object-cover"
+                loading="lazy"
+            >
+        </div>
         <p class="max-w-xl text-sm leading-relaxed text-[#353535]/65 sm:text-base">
             {% if request.LANGUAGE_CODE == 'pl' %}
-                Wypełnij formularz i od razu utwórz konto. Na tym etapie rejestracja działa bez weryfikacji email.
+                Wypełnij formularz i od razu utwórz konto. 
             {% else %}
                 Fill in the form and create your account instantly. At this stage registration works without email verification.
             {% endif %}
         </p>
-        <p class="font-mono text-xs text-[#353535]/40">
+        {% comment %} <p class="font-mono text-xs text-[#353535]/40">
             {% if request.LANGUAGE_CODE == 'pl' %}
                 Darmowy plan BASIC — nie wymaga karty.
             {% else %}
                 Free BASIC plan — no credit card required.
             {% endif %}
-        </p>
+        </p> {% endcomment %}
     </div>
 
     <form method="post" class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-5 lg:p-6">

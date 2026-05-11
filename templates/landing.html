@@ -170,9 +170,9 @@
                     <!-- Code content -->
                     <div class="p-5 font-mono text-xs sm:text-sm leading-relaxed overflow-auto">
                         <pre class="text-[#353535]/80 whitespace-pre-wrap"><span class="text-[#d9d9d9]">{</span>
-  <span class="text-[#284b63]">"name"</span><span class="text-[#353535]/50">:</span> <span class="text-[#5ca197]">"Twoja Firma Sp. z o.o."</span><span class="text-[#353535]/40">,</span>
-  <span class="text-[#284b63]">"slug"</span><span class="text-[#353535]/50">:</span> <span class="text-[#5ca197]">"twoja-firma"</span><span class="text-[#353535]/40">,</span>
-  <span class="text-[#284b63]">"ai_summary"</span><span class="text-[#353535]/50">:</span> <span class="text-[#5ca197]">"Producent oprogramowania B2B..."</span><span class="text-[#353535]/40">,</span>
+  <span class="text-[#284b63]">"name"</span><span class="text-[#353535]/50">:</span> <span class="text-[#5ca197]">{% if request.LANGUAGE_CODE == 'pl' %}"Twoja Firma Sp. z o.o."{% else %}"Your Company Ltd."{% endif %}</span><span class="text-[#353535]/40">,</span>
+  <span class="text-[#284b63]">"slug"</span><span class="text-[#353535]/50">:</span> <span class="text-[#5ca197]">{% if request.LANGUAGE_CODE == 'pl' %}"twoja-firma"{% else %}"your-company"{% endif %}</span><span class="text-[#353535]/40">,</span>
+  <span class="text-[#284b63]">"ai_summary"</span><span class="text-[#353535]/50">:</span> <span class="text-[#5ca197]">{% if request.LANGUAGE_CODE == 'pl' %}"Producent oprogramowania B2B..."{% else %}"B2B software manufacturer..."{% endif %}</span><span class="text-[#353535]/40">,</span>
   <span class="text-[#284b63]">"formats"</span><span class="text-[#353535]/50">:</span> <span class="text-[#d9d9d9]">[</span>
     <span class="text-[#5ca197]">"company.json"</span> <span class="text-[#353535]/30">✓</span><span class="text-[#353535]/40">,</span>
     <span class="text-[#5ca197]">"company.jsonld"</span> <span class="text-[#353535]/30">✓</span><span class="text-[#353535]/40">,</span>
