@@ -9,6 +9,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 
 from .forms import ProfileForm, ProfilePasswordChangeForm, UserRegistrationForm
@@ -43,6 +44,7 @@ class TokenLoginView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(request=TokenLoginSerializer, responses=OpenApiTypes.OBJECT)
     def post(self, request, *args, **kwargs):
         serializer = TokenLoginSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)

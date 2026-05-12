@@ -29,6 +29,7 @@ from .serializers import (
     SocialProfileSerializer,
     TagSerializer,
 )
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 
 from .services import build_basic_feed, build_jsonld_feed, build_llms_text, build_markdown_feed, public_feed_urls
@@ -253,12 +254,14 @@ class PublicCompanyDetailPageView(TemplateView):
 
 
 class PublicCompanyJsonView(PublicOrganizationMixin, APIView):
+    @extend_schema(operation_id="public_company_catalog_list", responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         organization = self.get_organization()
         return Response(build_basic_feed(organization, request))
 
 
 class PublicCompanyJsonLdView(PublicOrganizationMixin, APIView):
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         organization = self.get_organization()
         if not organization.get_subscription().supports("advanced_formats"):
@@ -267,6 +270,7 @@ class PublicCompanyJsonLdView(PublicOrganizationMixin, APIView):
 
 
 class PublicLLMsTextView(PublicOrganizationMixin, APIView):
+    @extend_schema(responses=OpenApiTypes.STR)
     def get(self, request, *args, **kwargs):
         organization = self.get_organization()
         if not organization.get_subscription().supports("llms_txt"):
@@ -275,6 +279,7 @@ class PublicLLMsTextView(PublicOrganizationMixin, APIView):
 
 
 class PublicCompanyMarkdownView(PublicOrganizationMixin, APIView):
+    @extend_schema(responses=OpenApiTypes.STR)
     def get(self, request, *args, **kwargs):
         organization = self.get_organization()
         if not organization.get_subscription().supports("company_md"):
@@ -370,6 +375,7 @@ class CompanyListView(generics.GenericAPIView):
             .order_by("name")
         )
 
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -384,6 +390,7 @@ class CompanyDetailView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(operation_id="public_company_catalog_detail", responses=OpenApiTypes.OBJECT)
     def get(self, request, slug, *args, **kwargs):
         org = get_object_or_404(
             verified_public_organization_queryset().select_related("subscription", "owner").prefetch_related(
@@ -402,6 +409,7 @@ class CompanyUpdatesView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         from django.utils import timezone as tz
         since_str = request.GET.get("since", "").strip()
@@ -437,6 +445,7 @@ class BulkAllJsonView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         from django.utils import timezone
         organizations = (
@@ -468,6 +477,7 @@ class CatalogNdjsonView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(responses=OpenApiTypes.STR)
     def get(self, request, *args, **kwargs):
         organizations = (
             verified_public_organization_queryset()
@@ -487,6 +497,7 @@ class SiteLLMsTextView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(responses=OpenApiTypes.STR)
     def get(self, request, *args, **kwargs):
         from apps.subscriptions.models import PlanTier
         organizations = (
@@ -522,6 +533,7 @@ class SiteLLMsTextView(APIView):
         return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
 
 
+@extend_schema(exclude=True)
 class ApiGuideTextView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
@@ -536,6 +548,7 @@ class ApiGuideTextView(APIView):
         )
 
 
+@extend_schema(exclude=True)
 class RobotsTextView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
@@ -585,6 +598,7 @@ class RobotsTextView(APIView):
         return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
 
 
+@extend_schema(exclude=True)
 class SitemapXmlView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
