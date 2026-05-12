@@ -476,6 +476,31 @@ class ClientVerifyView(AdminRequiredMixin, View):
         return reverse("dashboard:client-list")
 
 
+class OrganizationReviewView(AdminRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        organization = get_object_or_404(
+            Organization.objects.select_related("owner"),
+            pk=pk,
+            verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
+        )
+        organization.last_reviewed_at = timezone.now()
+        organization.last_reviewed_by = request.user
+        organization.save(update_fields=["last_reviewed_at", "last_reviewed_by", "updated_at"])
+
+        if request.LANGUAGE_CODE == "pl":
+            messages.success(request, f"Oznaczono jako sprawdzone: {organization.name}.")
+        else:
+            messages.success(request, f"Marked as reviewed: {organization.name}.")
+
+        return redirect(self._next_url(request, organization.owner_id))
+
+    def _next_url(self, request, owner_id):
+        next_url = request.POST.get("next") or reverse("dashboard:client-detail", kwargs={"pk": owner_id})
+        if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return next_url
+        return reverse("dashboard:client-detail", kwargs={"pk": owner_id})
+
+
 class ClientDetailView(AdminRequiredMixin, TemplateView):
     template_name = "dashboard/client_detail.html"
 

@@ -141,6 +141,9 @@
                                 {% if request.LANGUAGE_CODE == 'pl' %}Weryfikacja{% else %}Verified{% endif %}
                             </th>
                             <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                                {% if request.LANGUAGE_CODE == 'pl' %}Przegląd{% else %}Review{% endif %}
+                            </th>
+                            <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Kana&#322;y{% else %}Feeds{% endif %}
                             </th>
                         </tr>
@@ -187,7 +190,28 @@
                                 {% endif %}
                             </td>
                             <td class="px-4 py-3">
+                                <div class="flex flex-col gap-2">
+                                    {% if item.organization.last_reviewed_at %}
+                                        <span class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/50">
+                                            {{ item.organization.last_reviewed_at|date:"Y-m-d H:i" }}
+                                        </span>
+                                    {% else %}
+                                        <span class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/35">&#8212;</span>
+                                    {% endif %}
+                                    {% if item.organization.verification_status == 'human_admin_verified' %}
+                                        <form method="post" action="{% url 'dashboard:organization-review' item.organization.pk %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="inline-flex min-h-7 items-center justify-center rounded border border-[#5ca197]/40 bg-[#5ca197]/5 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197] transition hover:border-[#5ca197] hover:bg-[#5ca197] hover:text-white">
+                                                {% if request.LANGUAGE_CODE == 'pl' %}Sprawdzone{% else %}Mark reviewed{% endif %}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-2">
+                                    {% if item.organization.is_verified %}
                                     <a href="{{ item.public_urls.company_json }}" target="_blank" rel="noopener"
                                        class="inline-flex min-h-7 items-center justify-center rounded border border-[#d9d9d9] bg-white px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
                                         JSON
@@ -210,12 +234,17 @@
                                             LLMs.txt
                                         </a>
                                     {% endif %}
+                                    {% else %}
+                                        <span class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
+                                            {% if request.LANGUAGE_CODE == 'pl' %}Po weryfikacji{% else %}After verification{% endif %}
+                                        </span>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="px-4 py-8 text-center font-mono text-sm text-[#353535]/40">
+                            <td colspan="7" class="px-4 py-8 text-center font-mono text-sm text-[#353535]/40">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Brak uruchomionych stron.{% else %}No active pages.{% endif %}
                             </td>
                         </tr>

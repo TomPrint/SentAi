@@ -2,6 +2,13 @@
 
 {% block title %}Company catalog | xoaila{% endblock %}
 {% block meta_description %}Browse public companies published in AI-readable formats including JSON, JSON-LD, Markdown, and llms.txt.{% endblock %}
+{% block extra_head %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    <link rel="alternate" type="application/json" href="{{ directory_feed_urls.all_json }}">
+    <link rel="alternate" type="application/x-ndjson" href="{{ directory_feed_urls.catalog_ndjson }}">
+    <link rel="alternate" type="text/plain" href="{{ directory_feed_urls.llms_txt }}">
+    <link rel="alternate" type="application/json" href="{{ directory_feed_urls.openapi }}">
+{% endblock %}
 
 {% block content %}
 <section class="grid gap-6">

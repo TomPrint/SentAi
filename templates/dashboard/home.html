@@ -50,6 +50,7 @@
                                 {% if request.LANGUAGE_CODE == 'pl' %}publiczny profil po weryfikacji{% else %}public profile after verification{% endif %}
                             </span>
                         {% endif %}
+                        {% if organization.is_verified %}
                         <a class="font-mono text-xs text-[#5ca197] hover:text-[#2e5558] hover:underline" href="{% url 'companies_api:public-company-json' organization.slug %}" target="_blank">company.json ↗</a>
 
                         {% if organization.supports_advanced_formats %}
@@ -62,6 +63,11 @@
 
                         {% if organization.supports_llms_txt %}
                             <a class="font-mono text-xs text-[#5ca197] hover:text-[#2e5558] hover:underline" href="{% url 'companies_api:public-company-llms' organization.slug %}" target="_blank">llms.txt ↗</a>
+                        {% endif %}
+                        {% else %}
+                            <span class="font-mono text-xs text-[#353535]/40">
+                                {% if request.LANGUAGE_CODE == 'pl' %}endpointy po weryfikacji{% else %}feeds after verification{% endif %}
+                            </span>
                         {% endif %}
                     </dd>
                 </div>

@@ -34,6 +34,14 @@ from drf_spectacular.utils import extend_schema
 from .services import build_basic_feed, build_jsonld_feed, build_llms_text, build_markdown_feed, public_feed_urls
 
 
+def verified_public_organization_queryset():
+    return Organization.objects.filter(
+        public=True,
+        allow_ai_indexing=True,
+        verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
+    )
+
+
 class OwnedOrganizationQuerysetMixin:
     def get_organization_queryset(self):
         queryset = Organization.objects.select_related("owner", "subscription")
@@ -154,7 +162,7 @@ class PublicOrganizationMixin:
     authentication_classes = []
 
     def get_organization(self):
-        queryset = Organization.objects.select_related("subscription").prefetch_related(
+        queryset = verified_public_organization_queryset().select_related("subscription").prefetch_related(
             "social_profiles",
             "tags",
             "products",
@@ -163,8 +171,6 @@ class PublicOrganizationMixin:
         return get_object_or_404(
             queryset,
             slug=self.kwargs["slug"],
-            public=True,
-            allow_ai_indexing=True,
         )
 
 
@@ -173,11 +179,7 @@ class PublicCompanyDirectoryPageView(TemplateView):
 
     def get_queryset(self):
         queryset = (
-            Organization.objects.filter(
-                public=True,
-                allow_ai_indexing=True,
-                verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
-            )
+            verified_public_organization_queryset()
             .select_related("subscription", "owner")
             .prefetch_related("tags")
             .order_by("name")
@@ -201,6 +203,13 @@ class PublicCompanyDirectoryPageView(TemplateView):
         context["organizations"] = page_obj.object_list
         context["query"] = self.request.GET.get("q", "").strip()
         context["total_count"] = paginator.count
+        context["canonical_url"] = self.request.build_absolute_uri(reverse("public-company-directory"))
+        context["directory_feed_urls"] = {
+            "all_json": self.request.build_absolute_uri(reverse("companies_api:public-all-json")),
+            "catalog_ndjson": self.request.build_absolute_uri(reverse("companies_api:public-catalog-ndjson")),
+            "llms_txt": self.request.build_absolute_uri(reverse("site-llms-txt")),
+            "openapi": self.request.build_absolute_uri(reverse("openapi-schema")),
+        }
         return context
 
 
@@ -210,11 +219,7 @@ class PublicCompanyDetailPageView(TemplateView):
     def get_organization(self):
         if not hasattr(self, "_organization"):
             self._organization = get_object_or_404(
-                Organization.objects.filter(
-                    public=True,
-                    allow_ai_indexing=True,
-                    verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
-                )
+                verified_public_organization_queryset()
                 .select_related("subscription", "owner")
                 .prefetch_related("social_profiles", "tags", "products", "content_entries"),
                 slug=self.kwargs["slug"],
@@ -298,6 +303,8 @@ def _catalog_entry(org, request) -> dict:
         "ai_summary": org.ai_summary,
         "tags": [tag.name for tag in org.tags.all()],
         "verification_status": org.verification_status,
+        "verified_at": org.verified_at.isoformat() if org.verified_at else None,
+        "last_reviewed_at": org.last_reviewed_at.isoformat() if org.last_reviewed_at else None,
         "available_formats": {
             "company_json": True,
             "company_jsonld": sub.supports("advanced_formats"),
@@ -357,7 +364,7 @@ class CompanyListView(generics.GenericAPIView):
 
     def get_queryset(self):
         return (
-            Organization.objects.filter(public=True, allow_ai_indexing=True)
+            verified_public_organization_queryset()
             .select_related("subscription", "owner")
             .prefetch_related("tags")
             .order_by("name")
@@ -379,12 +386,10 @@ class CompanyDetailView(APIView):
 
     def get(self, request, slug, *args, **kwargs):
         org = get_object_or_404(
-            Organization.objects.select_related("subscription", "owner").prefetch_related(
+            verified_public_organization_queryset().select_related("subscription", "owner").prefetch_related(
                 "social_profiles", "tags", "products", "content_entries"
             ),
             slug=slug,
-            public=True,
-            allow_ai_indexing=True,
         )
         response = Response(build_basic_feed(org, request))
         response["Last-Modified"] = org.updated_at.strftime("%a, %d %b %Y %H:%M:%S GMT")
@@ -413,9 +418,7 @@ class CompanyUpdatesView(APIView):
             if not is_aware(since):
                 since = make_aware(since, datetime.timezone.utc)
         organizations = (
-            Organization.objects.filter(
-                public=True,
-                allow_ai_indexing=True,
+            verified_public_organization_queryset().filter(
                 updated_at__gte=since,
             )
             .select_related("subscription", "owner")
@@ -437,14 +440,14 @@ class BulkAllJsonView(APIView):
     def get(self, request, *args, **kwargs):
         from django.utils import timezone
         organizations = (
-            Organization.objects.filter(public=True, allow_ai_indexing=True)
+            verified_public_organization_queryset()
             .select_related("subscription", "owner")
             .prefetch_related("tags")
             .order_by("name")
         )
         results = [_catalog_entry(org, request) for org in organizations]
         latest = (
-            Organization.objects.filter(public=True, allow_ai_indexing=True)
+            verified_public_organization_queryset()
             .order_by("-updated_at")
             .values_list("updated_at", flat=True)
             .first()
@@ -467,7 +470,7 @@ class CatalogNdjsonView(APIView):
 
     def get(self, request, *args, **kwargs):
         organizations = (
-            Organization.objects.filter(public=True, allow_ai_indexing=True)
+            verified_public_organization_queryset()
             .select_related("subscription", "owner")
             .prefetch_related("social_profiles", "tags", "products", "content_entries")
             .order_by("name")
@@ -490,6 +493,7 @@ class SiteLLMsTextView(APIView):
             Organization.objects.filter(
                 public=True,
                 allow_ai_indexing=True,
+                verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
                 subscription__tier=PlanTier.PRO,
             )
             .select_related("subscription")
@@ -497,7 +501,7 @@ class SiteLLMsTextView(APIView):
         )
         lines = [
             "# llms.txt — SentAi Company Catalog",
-            "# This file lists companies that have opted in to AI indexing at PRO tier.",
+            "# This file lists verified companies that have opted in to AI indexing at PRO tier.",
             "# Each entry links to a dedicated llms.txt feed for that company.",
             "# Convention: https://llmstxt.org",
             "",
@@ -622,11 +626,7 @@ class SitemapXmlView(APIView):
         ]
 
         organizations = (
-            Organization.objects.filter(
-                public=True,
-                allow_ai_indexing=True,
-                verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
-            )
+            verified_public_organization_queryset()
             .select_related("subscription")
             .order_by("slug")
         )

@@ -9,6 +9,8 @@ OpenAPI JSON:  /openapi.json
 
 All public catalog endpoints require NO authentication.
 All responses are UTF-8 encoded JSON unless noted otherwise.
+Public discovery and feed endpoints expose only companies that are:
+  public=true, allow_ai_indexing=true, and human-admin verified.
 
 
 ----------------------------------------------------------------
@@ -36,7 +38,7 @@ Use the token in subsequent requests:
 
   GET /api/companies/
 
-Returns a paginated list of all public companies (20 per page).
+Returns a paginated list of all verified public companies (20 per page).
 
 Pagination:
   ?page=2
@@ -48,7 +50,7 @@ Filter parameters:
   language      Filter by primary language, e.g. en or pl (exact)
   company_type  manufacturing | services | trading | other
   tag           Filter by tag name (case-insensitive contains)
-  verified      true — return only human-verified companies
+  verified      true — accepted for compatibility; public results are already verified-only
   has_price     true — return only companies with priced products
 
 Ordering (prefix - for descending):
@@ -76,7 +78,9 @@ Response shape:
         "website_url": "https://acme.pl",
         "ai_summary": "Short plain-text summary (max 280 chars).",
         "tags": ["logistics", "automation"],
-        "verification_status": "unverified",
+        "verification_status": "human_admin_verified",
+        "verified_at": "2026-05-06T21:40:00+00:00",
+        "last_reviewed_at": "2026-05-12T10:15:00+00:00",
         "available_formats": {
           "company_json": true,
           "company_jsonld": false,
@@ -120,7 +124,7 @@ Use these for conditional GET requests:
   GET /api/companies/updates/
   GET /api/companies/updates/?since=2026-05-01T00:00:00Z
 
-Returns companies whose profiles were updated after the given
+Returns verified public companies whose profiles were updated after the given
 datetime. Defaults to the last 7 days when `since` is omitted.
 
 Use this endpoint to keep a local cache fresh without
@@ -149,7 +153,7 @@ Typical polling pattern:
 
   GET /api/public/all.json
 
-Returns the full catalog in a single JSON response with metadata.
+Returns the full verified public catalog in a single JSON response with metadata.
 Use for full syncs or loading the entire catalog into memory.
 
 Response shape:
@@ -169,7 +173,7 @@ Response shape:
   GET /api/public/catalog.ndjson
   Content-Type: application/x-ndjson
 
-Streams the full catalog as NDJSON (one JSON object per line).
+Streams the full verified public catalog as NDJSON (one JSON object per line).
 Each line is a complete company profile (same as company.json).
 Suitable for large catalogs, streaming pipelines, and LLM ingestion.
 
@@ -230,7 +234,7 @@ per-company endpoints.
   GET /llms.txt
   Content-Type: text/plain
 
-Site-wide llms.txt listing all PRO companies that have opted in
+Site-wide llms.txt listing all verified PRO companies that have opted in
 to AI indexing. Each entry links to that company's llms.txt feed.
 Follows the https://llmstxt.org convention.
 
@@ -270,8 +274,8 @@ You can discover all available slugs via:
 ----------------------------------------------------------------
 
   400  Bad Request   — invalid parameter (e.g. bad datetime format)
-  404  Not Found     — slug not found, company not public,
-                       or format not available on current plan
+  404  Not Found     — slug not found, company not verified/public,
+                       AI indexing not allowed, or format not available on current plan
   401  Unauthorized  — missing or invalid token (write endpoints only)
 
 
