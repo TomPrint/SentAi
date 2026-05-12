@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Company catalog | xoaila{% endblock %}
+{% block meta_description %}Browse public companies published in AI-readable formats including JSON, JSON-LD, Markdown, and llms.txt.{% endblock %}
+
+{% block content %}
+<section class="grid gap-6">
+    <div class="grid gap-3 border-b border-[#d9d9d9] pb-6">
+        <p class="font-mono text-xs uppercase tracking-widest text-[#5ca197]">public catalog</p>
+        <div class="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+                <h1 class="font-display text-3xl font-bold tracking-tight text-[#284b63] sm:text-4xl">AI-readable company catalog</h1>
+                <p class="mt-3 max-w-3xl text-sm leading-6 text-[#353535]/65">
+                    Public companies that opted in to AI indexing. Each profile links to structured formats for crawlers, agents, RAG systems, and developers.
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a class="inline-flex items-center rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-xs text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:public-all-json' %}">all.json</a>
+                <a class="inline-flex items-center rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-xs text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:public-catalog-ndjson' %}">catalog.ndjson</a>
+                <a class="inline-flex items-center rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-xs text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'site-llms-txt' %}">llms.txt</a>
+            </div>
+        </div>
+    </div>
+
+    <form class="grid gap-3 rounded border border-[#d9d9d9] bg-white p-4 sm:grid-cols-[1fr_auto]" method="get" action="{% url 'public-company-directory' %}">
+        <label class="sr-only" for="company-search">Search companies</label>
+        <input id="company-search" type="text" name="q" value="{{ query }}" placeholder="Search by company, summary, or tag">
+        <button class="inline-flex items-center justify-center rounded bg-[#284b63] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1e3a4f]" type="submit">Search</button>
+    </form>
+
+    <div class="font-mono text-xs text-[#353535]/45">{{ total_count }} public companies</div>
+
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {% for organization in organizations %}
+            <article class="grid gap-4 rounded border border-[#d9d9d9] bg-white p-5">
+                <div class="grid gap-2">
+                    <h2 class="font-display text-xl font-semibold text-[#284b63]">
+                        <a class="hover:text-[#5ca197]" href="{% url 'public-company-detail' organization.slug %}">{{ organization.name }}</a>
+                    </h2>
+                    <p class="text-sm leading-6 text-[#353535]/65">
+                        {% firstof organization.ai_summary organization.short_description_en organization.short_description_pl "No public summary yet." %}
+                    </p>
+                </div>
+                <dl class="grid gap-2 text-sm text-[#353535]/65">
+                    <div class="flex gap-2">
+                        <dt class="font-mono text-xs uppercase tracking-widest text-[#353535]/35">type</dt>
+                        <dd>{{ organization.get_company_type_display }}</dd>
+                    </div>
+                    {% if organization.city or organization.country %}
+                        <div class="flex gap-2">
+                            <dt class="font-mono text-xs uppercase tracking-widest text-[#353535]/35">location</dt>
+                            <dd>{{ organization.city }}{% if organization.city and organization.country %}, {% endif %}{{ organization.country }}</dd>
+                        </div>
+                    {% endif %}
+                    <div class="flex gap-2">
+                        <dt class="font-mono text-xs uppercase tracking-widest text-[#353535]/35">updated</dt>
+                        <dd>{{ organization.updated_at|date:"Y-m-d" }}</dd>
+                    </div>
+                </dl>
+                <div class="flex flex-wrap gap-2">
+                    {% for tag in organization.tags.all|slice:":4" %}
+                        <span class="rounded border border-[#5ca197]/20 bg-[#5ca197]/5 px-2 py-1 font-mono text-[11px] text-[#5ca197]">{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
+                <a class="inline-flex items-center justify-center rounded border border-[#d9d9d9] px-3 py-2 text-sm font-semibold text-[#284b63] transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'public-company-detail' organization.slug %}">View profile</a>
+            </article>
+        {% empty %}
+            <div class="rounded border border-[#d9d9d9] bg-white p-6 text-sm text-[#353535]/60 md:col-span-2 xl:col-span-3">No public companies found.</div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+        <nav class="flex flex-wrap items-center justify-between gap-3 border-t border-[#d9d9d9] pt-4">
+            {% if page_obj.has_previous %}
+                <a class="rounded border border-[#d9d9d9] bg-white px-3 py-2 text-sm text-[#284b63]" href="?q={{ query }}&page={{ page_obj.previous_page_number }}">Previous</a>
+            {% else %}
+                <span></span>
+            {% endif %}
+            <span class="font-mono text-xs text-[#353535]/45">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a class="rounded border border-[#d9d9d9] bg-white px-3 py-2 text-sm text-[#284b63]" href="?q={{ query }}&page={{ page_obj.next_page_number }}">Next</a>
+            {% else %}
+                <span></span>
+            {% endif %}
+        </nav>
+    {% endif %}
+</section>
+{% endblock %}

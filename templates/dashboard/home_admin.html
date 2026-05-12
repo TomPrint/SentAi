@@ -31,6 +31,9 @@
             <a class="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 font-mono text-sm font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'dashboard:report-seller-activities' %}">
                 {% if request.LANGUAGE_CODE == 'pl' %}Raporty{% else %}Reports{% endif %}
             </a>
+            <a class="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3 font-mono text-sm font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'public-company-directory' %}" target="_blank" rel="noopener">
+                {% if request.LANGUAGE_CODE == 'pl' %}Katalog firm{% else %}Company catalog{% endif %}
+            </a>
         </div>
     </div>
 </section>

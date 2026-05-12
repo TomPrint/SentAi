@@ -154,6 +154,9 @@
                     <a href="#plans" class="inline-flex items-center rounded border border-[#d9d9d9] px-6 py-3 font-sans text-sm font-semibold text-[#353535]/70 hover:border-[#5ca197] hover:text-[#5ca197] transition">
                         {% if request.LANGUAGE_CODE == 'pl' %}Zobacz plany{% else %}See plans{% endif %}
                     </a>
+                    <a href="{% url 'public-company-directory' %}" class="inline-flex items-center rounded border border-[#d9d9d9] px-6 py-3 font-sans text-sm font-semibold text-[#353535]/70 hover:border-[#5ca197] hover:text-[#5ca197] transition">
+                        {% if request.LANGUAGE_CODE == 'pl' %}Zobacz katalog firm{% else %}Browse company catalog{% endif %}
+                    </a>
                 </div>
             </div>
 
@@ -631,6 +634,9 @@
                 </a>
                 <a href="#plans" class="font-sans text-sm text-[#353535]/55 hover:text-[#284b63] transition">
                     {% if request.LANGUAGE_CODE == 'pl' %}Plany{% else %}Plans{% endif %}
+                </a>
+                <a href="{% url 'public-company-directory' %}" class="font-sans text-sm text-[#353535]/55 hover:text-[#284b63] transition">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Katalog firm{% else %}Company catalog{% endif %}
                 </a>
             </div>
 

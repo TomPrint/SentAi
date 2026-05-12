@@ -1,12 +1,17 @@
 import datetime
 import hashlib
 import json
+from xml.sax.saxutils import escape
 
+from django.conf import settings
 from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import is_aware, make_aware
+from django.views.generic import TemplateView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters as drf_filters
 from rest_framework import generics, permissions
@@ -15,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 import django_filters
 
-from .models import ContentEntry, Organization, Product, SocialProfile, Tag
+from .models import ContentEntry, Organization, Product, SocialProfile, Tag, VerificationStatus
 from .permissions import IsOrganizationOwnerOrAdmin
 from .serializers import (
     ContentEntrySerializer,
@@ -161,6 +166,85 @@ class PublicOrganizationMixin:
             public=True,
             allow_ai_indexing=True,
         )
+
+
+class PublicCompanyDirectoryPageView(TemplateView):
+    template_name = "companies/directory.html"
+
+    def get_queryset(self):
+        queryset = (
+            Organization.objects.filter(
+                public=True,
+                allow_ai_indexing=True,
+                verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
+            )
+            .select_related("subscription", "owner")
+            .prefetch_related("tags")
+            .order_by("name")
+        )
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(ai_summary__icontains=query)
+                | Q(short_description_en__icontains=query)
+                | Q(short_description_pl__icontains=query)
+                | Q(tags__name__icontains=query)
+            ).distinct()
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        paginator = Paginator(self.get_queryset(), 24)
+        page_obj = paginator.get_page(self.request.GET.get("page"))
+        context["page_obj"] = page_obj
+        context["organizations"] = page_obj.object_list
+        context["query"] = self.request.GET.get("q", "").strip()
+        context["total_count"] = paginator.count
+        return context
+
+
+class PublicCompanyDetailPageView(TemplateView):
+    template_name = "companies/detail.html"
+
+    def get_organization(self):
+        if not hasattr(self, "_organization"):
+            self._organization = get_object_or_404(
+                Organization.objects.filter(
+                    public=True,
+                    allow_ai_indexing=True,
+                    verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
+                )
+                .select_related("subscription", "owner")
+                .prefetch_related("social_profiles", "tags", "products", "content_entries"),
+                slug=self.kwargs["slug"],
+            )
+        return self._organization
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        organization = self.get_organization()
+        context["organization"] = organization
+        context["feed_urls"] = public_feed_urls(organization, self.request)
+        context["canonical_url"] = self.request.build_absolute_uri(
+            reverse("public-company-detail", kwargs={"slug": organization.slug})
+        )
+        context["jsonld_payload"] = ""
+        if organization.supports_advanced_formats:
+            context["jsonld_payload"] = json.dumps(
+                build_jsonld_feed(organization, self.request),
+                ensure_ascii=False,
+            )
+        context["description"] = (
+            organization.localized_text("long_description", organization.primary_language)
+            or organization.localized_text("short_description", organization.primary_language)
+            or organization.ai_summary
+        )
+        context["products"] = organization.products.all()
+        context["entries"] = organization.content_entries.all()[:10]
+        context["tags"] = organization.tags.all()
+        context["social_profiles"] = organization.social_profiles.all()
+        return context
 
 
 class PublicCompanyJsonView(PublicOrganizationMixin, APIView):
@@ -418,6 +502,7 @@ class SiteLLMsTextView(APIView):
             "# Convention: https://llmstxt.org",
             "",
             f"# Companies API: {request.build_absolute_uri(reverse('companies_api:company-list'))}",
+            f"# API guide: {request.build_absolute_uri('/api-guide.txt')}",
             f"# OpenAPI schema: {request.build_absolute_uri('/openapi.json')}",
             "",
         ]
@@ -431,3 +516,158 @@ class SiteLLMsTextView(APIView):
             lines.append(f"- llms.txt: {company_llms_url}")
             lines.append("")
         return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
+
+
+class ApiGuideTextView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        guide_path = settings.BASE_DIR / "api-guide.txt"
+        if not guide_path.exists():
+            raise Http404()
+        return HttpResponse(
+            guide_path.read_text(encoding="utf-8"),
+            content_type="text/plain; charset=utf-8",
+        )
+
+
+class RobotsTextView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        lines = [
+            "# SentAi crawler policy",
+            "# Public company catalog, AI-readable feeds, and API docs are crawlable.",
+            "",
+            "User-agent: *",
+            "Allow: /",
+            "",
+            "User-agent: OAI-SearchBot",
+            "Allow: /",
+            "",
+            "User-agent: GPTBot",
+            "Allow: /",
+            "",
+            "User-agent: ChatGPT-User",
+            "Allow: /",
+            "",
+            "User-agent: ClaudeBot",
+            "Allow: /",
+            "",
+            "User-agent: Claude-SearchBot",
+            "Allow: /",
+            "",
+            "User-agent: PerplexityBot",
+            "Allow: /",
+            "",
+            "User-agent: Googlebot",
+            "Allow: /",
+            "",
+            "User-agent: Google-Extended",
+            "Allow: /",
+            "",
+            "User-agent: CCBot",
+            "Allow: /",
+            "",
+            f"# LLM index: {request.build_absolute_uri(reverse('site-llms-txt'))}",
+            f"# API guide: {request.build_absolute_uri(reverse('api-guide-txt'))}",
+            f"# OpenAPI schema: {request.build_absolute_uri(reverse('openapi-schema'))}",
+            "",
+            f"Sitemap: {request.build_absolute_uri(reverse('sitemap-xml'))}",
+            "",
+        ]
+        return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
+
+
+class SitemapXmlView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        urls = [
+            {
+                "loc": request.build_absolute_uri(reverse("landing")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("site-llms-txt")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("api-guide-txt")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("openapi-schema")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("public-company-directory")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("companies_api:company-list")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("companies_api:public-all-json")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("companies_api:public-catalog-ndjson")),
+                "lastmod": None,
+            },
+        ]
+
+        organizations = (
+            Organization.objects.filter(
+                public=True,
+                allow_ai_indexing=True,
+                verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
+            )
+            .select_related("subscription")
+            .order_by("slug")
+        )
+        for org in organizations:
+            lastmod = org.updated_at.date().isoformat()
+            urls.append(
+                {
+                    "loc": request.build_absolute_uri(
+                        reverse("public-company-detail", kwargs={"slug": org.slug})
+                    ),
+                    "lastmod": lastmod,
+                }
+            )
+            urls.append(
+                {
+                    "loc": request.build_absolute_uri(
+                        reverse("companies_api:company-detail", kwargs={"slug": org.slug})
+                    ),
+                    "lastmod": lastmod,
+                }
+            )
+            feed_urls = public_feed_urls(org, request)
+            urls.append({"loc": feed_urls["company_json"], "lastmod": lastmod})
+
+            subscription = org.get_subscription()
+            if subscription.supports("advanced_formats"):
+                urls.append({"loc": feed_urls["company_jsonld"], "lastmod": lastmod})
+            if subscription.supports("company_md"):
+                urls.append({"loc": feed_urls["company_md"], "lastmod": lastmod})
+            if subscription.supports("llms_txt"):
+                urls.append({"loc": feed_urls["llms_txt"], "lastmod": lastmod})
+
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        ]
+        for item in urls:
+            lines.append("  <url>")
+            lines.append(f"    <loc>{escape(item['loc'])}</loc>")
+            if item["lastmod"]:
+                lines.append(f"    <lastmod>{item['lastmod']}</lastmod>")
+            lines.append("  </url>")
+        lines.append("</urlset>")
+        return HttpResponse("\n".join(lines), content_type="application/xml; charset=utf-8")
