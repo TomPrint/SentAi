@@ -61,7 +61,7 @@
                         {% firstof request.user.get_full_name request.user.username %}
                     </span>
                     <a href="{% url 'dashboard:home' %}" class="inline-flex items-center rounded bg-[#284b63] px-4 py-2 font-sans text-sm font-semibold text-white hover:bg-[#1e3a4f] transition shadow-sm">
-                        Panel
+                        {% if request.LANGUAGE_CODE == 'pl' %}Panel{% else %}Dashboard{% endif %}
                     </a>
                     <form action="{% url 'logout' %}" method="post">
                         {% csrf_token %}
