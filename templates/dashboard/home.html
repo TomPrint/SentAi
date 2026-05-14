@@ -43,11 +43,11 @@
                     <dd class="mt-1 flex flex-col gap-1">
                         {% if organization.is_verified %}
                             <a class="font-mono text-xs text-[#284b63] hover:text-[#5ca197] hover:underline" href="{% url 'public-company-detail' organization.slug %}" target="_blank" rel="noopener">
-                                {% if request.LANGUAGE_CODE == 'pl' %}publiczny profil{% else %}public profile{% endif %} ↗
+                                {% if request.LANGUAGE_CODE == 'pl' %}Publiczny profil{% else %}Public profile{% endif %} ↗
                             </a>
                         {% else %}
                             <span class="font-mono text-xs text-[#353535]/40">
-                                {% if request.LANGUAGE_CODE == 'pl' %}publiczny profil po weryfikacji{% else %}public profile after verification{% endif %}
+                                {% if request.LANGUAGE_CODE == 'pl' %}Publiczny profil po weryfikacji{% else %}Public profile after verification{% endif %}
                             </span>
                         {% endif %}
                         {% if organization.is_verified %}
@@ -66,7 +66,7 @@
                         {% endif %}
                         {% else %}
                             <span class="font-mono text-xs text-[#353535]/40">
-                                {% if request.LANGUAGE_CODE == 'pl' %}endpointy po weryfikacji{% else %}feeds after verification{% endif %}
+                                {% if request.LANGUAGE_CODE == 'pl' %}Endpointy po weryfikacji{% else %}Feeds after verification{% endif %}
                             </span>
                         {% endif %}
                     </dd>
@@ -76,30 +76,30 @@
             <div class="mt-5 flex flex-wrap gap-2 border-t border-[#d9d9d9] pt-4">
                 {% if organization.is_verified %}
                     <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#5ca197] bg-[#5ca197] px-3 py-1.5 font-mono text-xs font-medium text-white transition hover:border-[#3d7d78] hover:bg-[#3d7d78]" href="{% url 'public-company-detail' organization.slug %}" target="_blank" rel="noopener">
-                        {% if request.LANGUAGE_CODE == 'pl' %}zobacz profil{% else %}view profile{% endif %}
+                        {% if request.LANGUAGE_CODE == 'pl' %}Zobacz profil{% else %}View profile{% endif %}
                     </a>
                 {% else %}
                     <span class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-[#f8fafa] px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/45">
-                        {% if request.LANGUAGE_CODE == 'pl' %}czeka na weryfikację{% else %}pending verification{% endif %}
+                        {% if request.LANGUAGE_CODE == 'pl' %}Czeka na weryfikację{% else %}Pending verification{% endif %}
                     </span>
                 {% endif %}
 
                 <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'dashboard:organization-edit' organization.pk %}">
-                    {% if request.LANGUAGE_CODE == 'pl' %}edytuj{% else %}edit{% endif %}
+                    {% if request.LANGUAGE_CODE == 'pl' %}Edytuj{% else %}Edit{% endif %}
                 </a>
 
                 <form method="post" action="{% url 'dashboard:organization-delete' organization.pk %}" data-delete-form data-organization-name="{{ organization.name|escape }}">
                     {% csrf_token %}
                     <button type="submit" class="inline-flex min-h-9 items-center justify-center rounded border border-rose-200 bg-rose-50 px-3 py-1.5 font-mono text-xs font-medium text-rose-500 transition hover:border-rose-400 hover:bg-rose-100">
-                        {% if request.LANGUAGE_CODE == 'pl' %}usuń{% else %}delete{% endif %}
+                        {% if request.LANGUAGE_CODE == 'pl' %}Usuń{% else %}Delete{% endif %}
                     </button>
                 </form>
 
                 {% if request.user.is_superuser %}
-                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:social-profile-list' organization.pk %}">social</a>
-                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:tag-list' organization.pk %}">tags</a>
-                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:product-list' organization.pk %}">products</a>
-                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:entry-list' organization.pk %}">entries</a>
+                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:social-profile-list' organization.pk %}">Social</a>
+                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:tag-list' organization.pk %}">Tags</a>
+                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:product-list' organization.pk %}">Products</a>
+                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'companies_api:entry-list' organization.pk %}">Entries</a>
                 {% endif %}
             </div>
         </article>
@@ -308,8 +308,8 @@
                     class="h-full w-full object-cover"
                     loading="lazy"
                 >
-                <figcaption class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-white/90 to-transparent px-4 pb-3 pt-8 font-mono text-[10px] uppercase tracking-[0.2em] text-[#353535]/60">
-                    {% if request.LANGUAGE_CODE == 'pl' %}widoczność ai{% else %}ai visibility{% endif %}
+                <figcaption class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-white/30 to-transparent px-4 pb-1 pt-8 font-mono text-[12px] uppercase tracking-[0.2em] text-white">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Stań się widoczny dla AI{% else %}Be Visible to AI{% endif %}
                 </figcaption>
             </figure>
         </div>
