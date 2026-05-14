@@ -7,7 +7,14 @@ from django.views.i18n import set_language
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from apps.accounts.views import RegisterView
-from apps.companies.views import SiteLLMsTextView
+from apps.companies.views import (
+    ApiGuideTextView,
+    PublicCompanyDetailPageView,
+    PublicCompanyDirectoryPageView,
+    RobotsTextView,
+    SitemapXmlView,
+    SiteLLMsTextView,
+)
 from apps.dashboard.views import LandingView
 
 admin.site.site_header = "SentAi Administration"
@@ -20,6 +27,12 @@ urlpatterns = [
     path("openapi.json", SpectacularAPIView.as_view(), name="openapi-schema"),
     path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="openapi-schema"), name="api-schema-swagger-ui"),
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="openapi-schema"), name="api-schema-redoc"),
+    # Plain-text guide for developers, crawlers, and AI agents
+    path("api-guide.txt", ApiGuideTextView.as_view(), name="api-guide-txt"),
+    # Root robots.txt for search engines and AI crawlers
+    path("robots.txt", RobotsTextView.as_view(), name="robots-txt"),
+    # Dynamic sitemap for public AI-indexable catalog URLs
+    path("sitemap.xml", SitemapXmlView.as_view(), name="sitemap-xml"),
     # Site-wide llms.txt for LLM crawlers
     path("llms.txt", SiteLLMsTextView.as_view(), name="site-llms-txt"),
     path(
@@ -39,6 +52,8 @@ urlpatterns += i18n_patterns(
     path("set-language/", set_language, name="set_language_localized"),
     path("admin/", admin.site.urls),
     path("", LandingView.as_view(), name="landing"),
+    path("companies/", PublicCompanyDirectoryPageView.as_view(), name="public-company-directory"),
+    path("companies/<slug:slug>/", PublicCompanyDetailPageView.as_view(), name="public-company-detail"),
     path("dashboard/", include(("apps.dashboard.urls", "dashboard"), namespace="dashboard")),
     prefix_default_language=False,
 )

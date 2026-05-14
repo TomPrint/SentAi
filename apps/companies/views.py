@@ -1,12 +1,17 @@
 import datetime
 import hashlib
 import json
+from xml.sax.saxutils import escape
 
+from django.conf import settings
 from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import is_aware, make_aware
+from django.views.generic import TemplateView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters as drf_filters
 from rest_framework import generics, permissions
@@ -15,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 import django_filters
 
-from .models import ContentEntry, Organization, Product, SocialProfile, Tag
+from .models import ContentEntry, Organization, Product, SocialProfile, Tag, VerificationStatus
 from .permissions import IsOrganizationOwnerOrAdmin
 from .serializers import (
     ContentEntrySerializer,
@@ -24,9 +29,18 @@ from .serializers import (
     SocialProfileSerializer,
     TagSerializer,
 )
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 
 from .services import build_basic_feed, build_jsonld_feed, build_llms_text, build_markdown_feed, public_feed_urls
+
+
+def verified_public_organization_queryset():
+    return Organization.objects.filter(
+        public=True,
+        allow_ai_indexing=True,
+        verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
+    )
 
 
 class OwnedOrganizationQuerysetMixin:
@@ -149,7 +163,7 @@ class PublicOrganizationMixin:
     authentication_classes = []
 
     def get_organization(self):
-        queryset = Organization.objects.select_related("subscription").prefetch_related(
+        queryset = verified_public_organization_queryset().select_related("subscription").prefetch_related(
             "social_profiles",
             "tags",
             "products",
@@ -158,18 +172,96 @@ class PublicOrganizationMixin:
         return get_object_or_404(
             queryset,
             slug=self.kwargs["slug"],
-            public=True,
-            allow_ai_indexing=True,
         )
 
 
+class PublicCompanyDirectoryPageView(TemplateView):
+    template_name = "companies/directory.html"
+
+    def get_queryset(self):
+        queryset = (
+            verified_public_organization_queryset()
+            .select_related("subscription", "owner")
+            .prefetch_related("tags")
+            .order_by("name")
+        )
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(ai_summary__icontains=query)
+                | Q(short_description_en__icontains=query)
+                | Q(short_description_pl__icontains=query)
+                | Q(tags__name__icontains=query)
+            ).distinct()
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        paginator = Paginator(self.get_queryset(), 24)
+        page_obj = paginator.get_page(self.request.GET.get("page"))
+        context["page_obj"] = page_obj
+        context["organizations"] = page_obj.object_list
+        context["query"] = self.request.GET.get("q", "").strip()
+        context["total_count"] = paginator.count
+        context["canonical_url"] = self.request.build_absolute_uri(reverse("public-company-directory"))
+        context["directory_feed_urls"] = {
+            "all_json": self.request.build_absolute_uri(reverse("companies_api:public-all-json")),
+            "catalog_ndjson": self.request.build_absolute_uri(reverse("companies_api:public-catalog-ndjson")),
+            "llms_txt": self.request.build_absolute_uri(reverse("site-llms-txt")),
+            "openapi": self.request.build_absolute_uri(reverse("openapi-schema")),
+        }
+        return context
+
+
+class PublicCompanyDetailPageView(TemplateView):
+    template_name = "companies/detail.html"
+
+    def get_organization(self):
+        if not hasattr(self, "_organization"):
+            self._organization = get_object_or_404(
+                verified_public_organization_queryset()
+                .select_related("subscription", "owner")
+                .prefetch_related("social_profiles", "tags", "products", "content_entries"),
+                slug=self.kwargs["slug"],
+            )
+        return self._organization
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        organization = self.get_organization()
+        context["organization"] = organization
+        context["feed_urls"] = public_feed_urls(organization, self.request)
+        context["canonical_url"] = self.request.build_absolute_uri(
+            reverse("public-company-detail", kwargs={"slug": organization.slug})
+        )
+        context["jsonld_payload"] = ""
+        if organization.supports_advanced_formats:
+            context["jsonld_payload"] = json.dumps(
+                build_jsonld_feed(organization, self.request),
+                ensure_ascii=False,
+            )
+        context["description"] = (
+            organization.localized_text("long_description", organization.primary_language)
+            or organization.localized_text("short_description", organization.primary_language)
+            or organization.ai_summary
+        )
+        context["products"] = organization.products.all()
+        context["entries"] = organization.content_entries.all()[:10]
+        context["tags"] = organization.tags.all()
+        context["social_profiles"] = organization.social_profiles.all()
+        return context
+
+
 class PublicCompanyJsonView(PublicOrganizationMixin, APIView):
+    @extend_schema(operation_id="public_company_catalog_list", responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         organization = self.get_organization()
         return Response(build_basic_feed(organization, request))
 
 
 class PublicCompanyJsonLdView(PublicOrganizationMixin, APIView):
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         organization = self.get_organization()
         if not organization.get_subscription().supports("advanced_formats"):
@@ -178,6 +270,7 @@ class PublicCompanyJsonLdView(PublicOrganizationMixin, APIView):
 
 
 class PublicLLMsTextView(PublicOrganizationMixin, APIView):
+    @extend_schema(responses=OpenApiTypes.STR)
     def get(self, request, *args, **kwargs):
         organization = self.get_organization()
         if not organization.get_subscription().supports("llms_txt"):
@@ -186,6 +279,7 @@ class PublicLLMsTextView(PublicOrganizationMixin, APIView):
 
 
 class PublicCompanyMarkdownView(PublicOrganizationMixin, APIView):
+    @extend_schema(responses=OpenApiTypes.STR)
     def get(self, request, *args, **kwargs):
         organization = self.get_organization()
         if not organization.get_subscription().supports("company_md"):
@@ -214,6 +308,8 @@ def _catalog_entry(org, request) -> dict:
         "ai_summary": org.ai_summary,
         "tags": [tag.name for tag in org.tags.all()],
         "verification_status": org.verification_status,
+        "verified_at": org.verified_at.isoformat() if org.verified_at else None,
+        "last_reviewed_at": org.last_reviewed_at.isoformat() if org.last_reviewed_at else None,
         "available_formats": {
             "company_json": True,
             "company_jsonld": sub.supports("advanced_formats"),
@@ -273,12 +369,13 @@ class CompanyListView(generics.GenericAPIView):
 
     def get_queryset(self):
         return (
-            Organization.objects.filter(public=True, allow_ai_indexing=True)
+            verified_public_organization_queryset()
             .select_related("subscription", "owner")
             .prefetch_related("tags")
             .order_by("name")
         )
 
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -293,14 +390,13 @@ class CompanyDetailView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(operation_id="public_company_catalog_detail", responses=OpenApiTypes.OBJECT)
     def get(self, request, slug, *args, **kwargs):
         org = get_object_or_404(
-            Organization.objects.select_related("subscription", "owner").prefetch_related(
+            verified_public_organization_queryset().select_related("subscription", "owner").prefetch_related(
                 "social_profiles", "tags", "products", "content_entries"
             ),
             slug=slug,
-            public=True,
-            allow_ai_indexing=True,
         )
         response = Response(build_basic_feed(org, request))
         response["Last-Modified"] = org.updated_at.strftime("%a, %d %b %Y %H:%M:%S GMT")
@@ -313,6 +409,7 @@ class CompanyUpdatesView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         from django.utils import timezone as tz
         since_str = request.GET.get("since", "").strip()
@@ -329,9 +426,7 @@ class CompanyUpdatesView(APIView):
             if not is_aware(since):
                 since = make_aware(since, datetime.timezone.utc)
         organizations = (
-            Organization.objects.filter(
-                public=True,
-                allow_ai_indexing=True,
+            verified_public_organization_queryset().filter(
                 updated_at__gte=since,
             )
             .select_related("subscription", "owner")
@@ -350,17 +445,18 @@ class BulkAllJsonView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request, *args, **kwargs):
         from django.utils import timezone
         organizations = (
-            Organization.objects.filter(public=True, allow_ai_indexing=True)
+            verified_public_organization_queryset()
             .select_related("subscription", "owner")
             .prefetch_related("tags")
             .order_by("name")
         )
         results = [_catalog_entry(org, request) for org in organizations]
         latest = (
-            Organization.objects.filter(public=True, allow_ai_indexing=True)
+            verified_public_organization_queryset()
             .order_by("-updated_at")
             .values_list("updated_at", flat=True)
             .first()
@@ -381,9 +477,10 @@ class CatalogNdjsonView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(responses=OpenApiTypes.STR)
     def get(self, request, *args, **kwargs):
         organizations = (
-            Organization.objects.filter(public=True, allow_ai_indexing=True)
+            verified_public_organization_queryset()
             .select_related("subscription", "owner")
             .prefetch_related("social_profiles", "tags", "products", "content_entries")
             .order_by("name")
@@ -400,12 +497,14 @@ class SiteLLMsTextView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    @extend_schema(responses=OpenApiTypes.STR)
     def get(self, request, *args, **kwargs):
         from apps.subscriptions.models import PlanTier
         organizations = (
             Organization.objects.filter(
                 public=True,
                 allow_ai_indexing=True,
+                verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
                 subscription__tier=PlanTier.PRO,
             )
             .select_related("subscription")
@@ -413,11 +512,12 @@ class SiteLLMsTextView(APIView):
         )
         lines = [
             "# llms.txt — SentAi Company Catalog",
-            "# This file lists companies that have opted in to AI indexing at PRO tier.",
+            "# This file lists verified companies that have opted in to AI indexing at PRO tier.",
             "# Each entry links to a dedicated llms.txt feed for that company.",
             "# Convention: https://llmstxt.org",
             "",
             f"# Companies API: {request.build_absolute_uri(reverse('companies_api:company-list'))}",
+            f"# API guide: {request.build_absolute_uri('/api-guide.txt')}",
             f"# OpenAPI schema: {request.build_absolute_uri('/openapi.json')}",
             "",
         ]
@@ -431,3 +531,157 @@ class SiteLLMsTextView(APIView):
             lines.append(f"- llms.txt: {company_llms_url}")
             lines.append("")
         return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
+
+
+@extend_schema(exclude=True)
+class ApiGuideTextView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        guide_path = settings.BASE_DIR / "api-guide.txt"
+        if not guide_path.exists():
+            raise Http404()
+        return HttpResponse(
+            guide_path.read_text(encoding="utf-8"),
+            content_type="text/plain; charset=utf-8",
+        )
+
+
+@extend_schema(exclude=True)
+class RobotsTextView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        lines = [
+            "# SentAi crawler policy",
+            "# Public company catalog, AI-readable feeds, and API docs are crawlable.",
+            "",
+            "User-agent: *",
+            "Allow: /",
+            "",
+            "User-agent: OAI-SearchBot",
+            "Allow: /",
+            "",
+            "User-agent: GPTBot",
+            "Allow: /",
+            "",
+            "User-agent: ChatGPT-User",
+            "Allow: /",
+            "",
+            "User-agent: ClaudeBot",
+            "Allow: /",
+            "",
+            "User-agent: Claude-SearchBot",
+            "Allow: /",
+            "",
+            "User-agent: PerplexityBot",
+            "Allow: /",
+            "",
+            "User-agent: Googlebot",
+            "Allow: /",
+            "",
+            "User-agent: Google-Extended",
+            "Allow: /",
+            "",
+            "User-agent: CCBot",
+            "Allow: /",
+            "",
+            f"# LLM index: {request.build_absolute_uri(reverse('site-llms-txt'))}",
+            f"# API guide: {request.build_absolute_uri(reverse('api-guide-txt'))}",
+            f"# OpenAPI schema: {request.build_absolute_uri(reverse('openapi-schema'))}",
+            "",
+            f"Sitemap: {request.build_absolute_uri(reverse('sitemap-xml'))}",
+            "",
+        ]
+        return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
+
+
+@extend_schema(exclude=True)
+class SitemapXmlView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        urls = [
+            {
+                "loc": request.build_absolute_uri(reverse("landing")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("site-llms-txt")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("api-guide-txt")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("openapi-schema")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("public-company-directory")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("companies_api:company-list")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("companies_api:public-all-json")),
+                "lastmod": None,
+            },
+            {
+                "loc": request.build_absolute_uri(reverse("companies_api:public-catalog-ndjson")),
+                "lastmod": None,
+            },
+        ]
+
+        organizations = (
+            verified_public_organization_queryset()
+            .select_related("subscription")
+            .order_by("slug")
+        )
+        for org in organizations:
+            lastmod = org.updated_at.date().isoformat()
+            urls.append(
+                {
+                    "loc": request.build_absolute_uri(
+                        reverse("public-company-detail", kwargs={"slug": org.slug})
+                    ),
+                    "lastmod": lastmod,
+                }
+            )
+            urls.append(
+                {
+                    "loc": request.build_absolute_uri(
+                        reverse("companies_api:company-detail", kwargs={"slug": org.slug})
+                    ),
+                    "lastmod": lastmod,
+                }
+            )
+            feed_urls = public_feed_urls(org, request)
+            urls.append({"loc": feed_urls["company_json"], "lastmod": lastmod})
+
+            subscription = org.get_subscription()
+            if subscription.supports("advanced_formats"):
+                urls.append({"loc": feed_urls["company_jsonld"], "lastmod": lastmod})
+            if subscription.supports("company_md"):
+                urls.append({"loc": feed_urls["company_md"], "lastmod": lastmod})
+            if subscription.supports("llms_txt"):
+                urls.append({"loc": feed_urls["llms_txt"], "lastmod": lastmod})
+
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        ]
+        for item in urls:
+            lines.append("  <url>")
+            lines.append(f"    <loc>{escape(item['loc'])}</loc>")
+            if item["lastmod"]:
+                lines.append(f"    <lastmod>{item['lastmod']}</lastmod>")
+            lines.append("  </url>")
+        lines.append("</urlset>")
+        return HttpResponse("\n".join(lines), content_type="application/xml; charset=utf-8")

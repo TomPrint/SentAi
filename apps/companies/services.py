@@ -242,6 +242,7 @@ def build_basic_feed(organization, request=None) -> dict:
                 "source_url": organization.source_url,
                 "verification_status": organization.verification_status,
                 "verified_at": organization.verified_at.isoformat() if organization.verified_at else None,
+                "last_reviewed_at": organization.last_reviewed_at.isoformat() if organization.last_reviewed_at else None,
             },
             "ai_access": {
                 "subscription_tier": subscription.tier,
@@ -267,14 +268,15 @@ def build_jsonld_feed(organization, request=None) -> dict:
     available_languages = list(description_map.keys()) or _ordered_unique(
         list(organization.content_languages or []) + [organization.primary_language]
     )
+    canonical_page = absolute_url(
+        reverse("public-company-detail", kwargs={"slug": organization.slug}),
+        request,
+    )
     return compact(
         {
             "@context": "https://schema.org",
             "@type": "Organization",
-            "@id": absolute_url(
-                reverse("companies_api:public-company-json", kwargs={"slug": organization.slug}),
-                request,
-            ),
+            "@id": f"{canonical_page}#organization",
             "name": organization.name,
             "identifier": organization.slug,
             "url": organization.website_url,
@@ -335,11 +337,7 @@ def build_jsonld_feed(organization, request=None) -> dict:
                 )
                 for entry in organization.content_entries.all()
             ],
-            "mainEntityOfPage": organization.website_url
-            or absolute_url(
-                reverse("companies_api:public-company-json", kwargs={"slug": organization.slug}),
-                request,
-            ),
+            "mainEntityOfPage": canonical_page,
         }
     )
 
@@ -364,6 +362,7 @@ def build_llms_text(organization, request=None) -> str:
         f"- company.json: {feed_urls['company_json']}",
         f"- company.jsonld: {feed_urls['company_jsonld']}",
         f"- llms.txt: {feed_urls['llms_txt']}",
+        f"- Last reviewed: {organization.last_reviewed_at.date().isoformat() if organization.last_reviewed_at else 'n/a'}",
         "",
         "## Contact",
         f"- Website: {organization.website_url or 'n/a'}",
@@ -451,6 +450,8 @@ def build_markdown_feed(organization, request=None) -> str:
         lines.append(f"- **Phone:** {organization.phone_number}")
     lines.append(f"- **Primary language:** {organization.primary_language}")
     lines.append(f"- **Verification:** {organization.verification_status}")
+    if organization.last_reviewed_at:
+        lines.append(f"- **Last reviewed:** {organization.last_reviewed_at.date().isoformat()}")
     lines.append(f"- **Last updated:** {organization.updated_at.date().isoformat()}")
     lines.append("")
 

@@ -399,9 +399,11 @@ class ClientListView(AdminRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         from apps.sales.models import ProspectClient
+        from urllib.parse import urlencode
 
         context = super().get_context_data(**kwargs)
         q = self.request.GET.get("q", "").strip()
+        sort = self.request.GET.get("sort", "email")
         linked_prospect_subquery = ProspectClient.objects.filter(
             registered_client=models.OuterRef("pk")
         ).values("pk")[:1]
@@ -425,8 +427,9 @@ class ClientListView(AdminRequiredMixin, TemplateView):
             .annotate(primary_organization_name=models.Subquery(first_organization_name_subquery))
             .annotate(primary_organization_website=models.Subquery(first_organization_website_subquery))
             .annotate(is_verified=models.Exists(verified_organization_subquery))
+            .annotate(organization_count=models.Count("organizations", distinct=True))
+            .annotate(last_reviewed_at=models.Max("organizations__last_reviewed_at"))
             .prefetch_related("organizations")
-            .order_by("email")
         )
         if q:
             qs = qs.filter(
@@ -434,8 +437,54 @@ class ClientListView(AdminRequiredMixin, TemplateView):
                 | models.Q(email__icontains=q)
                 | models.Q(username__icontains=q)
             )
+        sort_map = {
+            "company": ("company_name", "email"),
+            "-company": ("-company_name", "email"),
+            "email": ("email",),
+            "-email": ("-email",),
+            "plan": ("plan_tier", "email"),
+            "-plan": ("-plan_tier", "email"),
+            "verified": ("is_verified", "email"),
+            "-verified": ("-is_verified", "email"),
+            "seller": ("linked_seller_username", "email"),
+            "-seller": ("-linked_seller_username", "email"),
+            "country": ("country", "email"),
+            "-country": ("-country", "email"),
+            "pages": ("organization_count", "email"),
+            "-pages": ("-organization_count", "email"),
+            "joined": ("date_joined", "email"),
+            "-joined": ("-date_joined", "email"),
+            "login": ("last_login", "email"),
+            "-login": ("-last_login", "email"),
+            "reviewed": ("last_reviewed_at", "email"),
+            "-reviewed": ("-last_reviewed_at", "email"),
+        }
+        if sort not in sort_map:
+            sort = "email"
+        qs = qs.order_by(*sort_map[sort])
+
+        def sort_url(key):
+            next_sort = key if sort != key else f"-{key}"
+            params = {"sort": next_sort}
+            if q:
+                params["q"] = q
+            return f"?{urlencode(params)}"
+
         context["clients"] = qs
         context["search_query"] = q
+        context["current_sort"] = sort
+        context["sort_urls"] = {
+            "company": sort_url("company"),
+            "email": sort_url("email"),
+            "plan": sort_url("plan"),
+            "verified": sort_url("verified"),
+            "seller": sort_url("seller"),
+            "country": sort_url("country"),
+            "pages": sort_url("pages"),
+            "joined": sort_url("joined"),
+            "login": sort_url("login"),
+            "reviewed": sort_url("reviewed"),
+        }
         return context
 
 
@@ -474,6 +523,31 @@ class ClientVerifyView(AdminRequiredMixin, View):
         if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
             return next_url
         return reverse("dashboard:client-list")
+
+
+class OrganizationReviewView(AdminRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        organization = get_object_or_404(
+            Organization.objects.select_related("owner"),
+            pk=pk,
+            verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED,
+        )
+        organization.last_reviewed_at = timezone.now()
+        organization.last_reviewed_by = request.user
+        organization.save(update_fields=["last_reviewed_at", "last_reviewed_by", "updated_at"])
+
+        if request.LANGUAGE_CODE == "pl":
+            messages.success(request, f"Oznaczono jako sprawdzone: {organization.name}.")
+        else:
+            messages.success(request, f"Marked as reviewed: {organization.name}.")
+
+        return redirect(self._next_url(request, organization.owner_id))
+
+    def _next_url(self, request, owner_id):
+        next_url = request.POST.get("next") or reverse("dashboard:client-detail", kwargs={"pk": owner_id})
+        if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return next_url
+        return reverse("dashboard:client-detail", kwargs={"pk": owner_id})
 
 
 class ClientDetailView(AdminRequiredMixin, TemplateView):

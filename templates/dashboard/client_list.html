@@ -21,6 +21,7 @@
         </div>
 
         <form method="get" action="" class="flex gap-2">
+            <input type="hidden" name="sort" value="{{ current_sort }}">
             <input
                 type="search"
                 name="q"
@@ -55,31 +56,34 @@
                 <thead>
                     <tr class="border-b border-[#d9d9d9] bg-[#f8fafa]">
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}Nazwa firmy{% else %}Company name{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.company }}">{% if request.LANGUAGE_CODE == 'pl' %}Nazwa firmy{% else %}Company name{% endif %}</a>
                         </th>
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}E-mail{% else %}Email{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.email }}">{% if request.LANGUAGE_CODE == 'pl' %}E-mail{% else %}Email{% endif %}</a>
                         </th>
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}Plan{% else %}Plan{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.plan }}">{% if request.LANGUAGE_CODE == 'pl' %}Plan{% else %}Plan{% endif %}</a>
                         </th>
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}Weryfikacja{% else %}Verification{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.verified }}">{% if request.LANGUAGE_CODE == 'pl' %}Weryfikacja{% else %}Verification{% endif %}</a>
                         </th>
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}Handlowiec{% else %}Sales rep{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.seller }}">{% if request.LANGUAGE_CODE == 'pl' %}Handlowiec{% else %}Sales rep{% endif %}</a>
                         </th>
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}Kraj{% else %}Country{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.country }}">{% if request.LANGUAGE_CODE == 'pl' %}Kraj{% else %}Country{% endif %}</a>
                         </th>
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}Strony{% else %}Pages{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.pages }}">{% if request.LANGUAGE_CODE == 'pl' %}Strony{% else %}Pages{% endif %}</a>
                         </th>
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}Rejestracja{% else %}Joined{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.joined }}">{% if request.LANGUAGE_CODE == 'pl' %}Rejestracja{% else %}Joined{% endif %}</a>
                         </th>
                         <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
-                            {% if request.LANGUAGE_CODE == 'pl' %}Ostatnie logowanie{% else %}Last login{% endif %}
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.login }}">{% if request.LANGUAGE_CODE == 'pl' %}Ostatnie logowanie{% else %}Last login{% endif %}</a>
+                        </th>
+                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                            <a class="hover:text-[#5ca197]" href="{{ sort_urls.reviewed }}">{% if request.LANGUAGE_CODE == 'pl' %}Ostatni przegląd{% else %}Reviewed{% endif %}</a>
                         </th>
                         <th class="px-4 py-3"></th>
                     </tr>
@@ -129,7 +133,7 @@
                             {{ client.country|default:"-" }}
                         </td>
                         <td class="px-4 py-3 font-mono text-[#353535]/50">
-                            {{ client.organizations.count }}
+                            {{ client.organization_count }}
                         </td>
                         <td class="px-4 py-3 font-mono text-xs text-[#353535]/50">
                             {{ client.date_joined|date:"Y-m-d" }}
@@ -137,22 +141,25 @@
                         <td class="px-4 py-3 font-mono text-xs text-[#353535]/50">
                             {{ client.last_login|date:"Y-m-d H:i"|default:"-" }}
                         </td>
-                        <td class="px-4 py-3 text-right">
+                        <td class="px-4 py-3 font-mono text-xs text-[#353535]/50">
+                            {{ client.last_reviewed_at|date:"Y-m-d H:i"|default:"-" }}
+                        </td>
+                        <td class="w-36 px-4 py-3 text-right">
                             {% if client.linked_prospect_id %}
                                 <a href="{% url 'dashboard:prospect-detail' client.linked_prospect_id %}"
-                                   class="mr-1 inline-flex min-h-7 items-center justify-center rounded border border-[#5ca197]/30 bg-[#5ca197]/8 px-3 py-1 font-mono text-xs font-medium text-[#5ca197] transition hover:bg-[#5ca197]/15">
+                                   class="mb-1 inline-flex min-h-7 w-28 items-center justify-center whitespace-nowrap rounded border border-[#5ca197]/30 bg-[#5ca197]/8 px-2 py-1 font-mono text-xs font-medium text-[#5ca197] transition hover:bg-[#5ca197]/15">
                                     {% if request.LANGUAGE_CODE == 'pl' %}Aktywno&#347;ci{% else %}Activities{% endif %}
                                 </a>
                             {% endif %}
                             <a href="{% url 'dashboard:client-detail' client.pk %}"
-                               class="inline-flex min-h-7 items-center justify-center rounded border border-[#d9d9d9] bg-white px-3 py-1 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
-                                {% if request.LANGUAGE_CODE == 'pl' %}Szczeg&#xF3;&#x142;y{% else %}Details{% endif %} ->
+                               class="inline-flex min-h-7 w-28 items-center justify-center whitespace-nowrap rounded border border-[#d9d9d9] bg-white px-2 py-1 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
+                                {% if request.LANGUAGE_CODE == 'pl' %}Szczeg&#xF3;&#x142;y{% else %}Details{% endif %}
                             </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="px-4 py-8 text-center font-mono text-sm text-[#353535]/40">
+                        <td colspan="11" class="px-4 py-8 text-center font-mono text-sm text-[#353535]/40">
                             {% if request.LANGUAGE_CODE == 'pl' %}Brak klient&#xF3;w.{% else %}No clients yet.{% endif %}
                         </td>
                     </tr>

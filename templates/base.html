@@ -4,7 +4,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>xoaila</title>
+    <title>{% block title %}xoaila{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}xoaila publishes company data in formats that are easy for AI systems, crawlers, and developers to read.{% endblock %}">
+    {% block extra_head %}{% endblock %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -65,7 +67,7 @@
         <div class="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
             <div class="flex h-14 items-center justify-between gap-3">
                 <!-- Logo -->
-                <a class="inline-flex items-end gap-1 shrink-0" href="/">
+                <a class="inline-flex items-end gap-1 shrink-0" href="{% url 'landing' %}">
                     <span class="font-display text-2xl font-bold tracking-tight text-[#284b63]">xoaila</span>
                     <span class="mb-0.5 h-2 w-2 rounded-full bg-[#5ca197] shrink-0"></span>
                 </a>
@@ -82,9 +84,15 @@
                         {% endif %}
                     </form>
                     {% if request.user.is_authenticated %}
-                        <a class="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-xs font-medium text-[#353535]/60 transition hover:border-[#5ca197] hover:text-[#5ca197] sm:w-auto" href="/">
+                        <a class="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-xs font-medium text-[#353535]/60 transition hover:border-[#5ca197] hover:text-[#5ca197] sm:w-auto" href="{% url 'landing' %}">
                             <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/></svg>
                             <span>{% if request.LANGUAGE_CODE == 'pl' %}G&#322;&#243;wna{% else %}Home{% endif %}</span>
+                        </a>
+                        <a class="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-xs font-medium text-[#353535]/60 transition hover:border-[#5ca197] hover:text-[#5ca197] sm:w-auto" href="{% url 'dashboard:home' %}">
+                            <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M4 5h7v7H4V5zm9 0h7v4h-7V5zM4 14h7v5H4v-5zm9-3h7v8h-7v-8z" fill="currentColor"/>
+                            </svg>
+                            <span>{% if request.LANGUAGE_CODE == 'pl' %}Panel{% else %}Dashboard{% endif %}</span>
                         </a>
                         {% if navbar_show_account_badges %}
                             <div class="grid w-full {% if request.user.account_type == 'STAFF' %}grid-cols-1{% else %}grid-cols-3{% endif %} gap-2 sm:flex sm:w-auto">

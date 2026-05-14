@@ -53,6 +53,14 @@ class Organization(models.Model):
         blank=True,
         null=True,
     )
+    last_reviewed_at = models.DateTimeField(blank=True, null=True)
+    last_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_organizations",
+        blank=True,
+        null=True,
+    )
     primary_language = models.CharField(
         max_length=2,
         choices=getattr(settings, "FEED_LANGUAGES", settings.LANGUAGES),
