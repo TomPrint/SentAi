@@ -121,6 +121,7 @@ class ProspectClientForm(forms.Form):
     contact_person = forms.CharField(max_length=255)
     email = forms.EmailField()
     phone = forms.CharField(max_length=20)
+    website_url = forms.URLField(required=False)
     notes = forms.CharField(widget=forms.Textarea, required=False)
     registered_client = RegisteredClientChoiceField(queryset=User.objects.none(), required=False)
 
@@ -133,15 +134,17 @@ class ProspectClientForm(forms.Form):
             self.fields["contact_person"].label = "Osoba kontaktowa"
             self.fields["email"].label = "E-mail"
             self.fields["phone"].label = "Numer telefonu"
+            self.fields["website_url"].label = "Strona WWW"
             self.fields["notes"].label = "Notatki"
-            self.fields["registered_client"].label = "Powiązany zarejestrowany klient (opcjonalnie)"
+            self.fields["registered_client"].label = "Powiązany klient"
         else:
             self.fields["company_name"].label = "Company name"
             self.fields["contact_person"].label = "Contact person"
             self.fields["email"].label = "Email"
             self.fields["phone"].label = "Phone"
+            self.fields["website_url"].label = "Website"
             self.fields["notes"].label = "Notes"
-            self.fields["registered_client"].label = "Linked registered client (optional)"
+            self.fields["registered_client"].label = "Linked client"
 
         self.fields["registered_client"].queryset = (
             User.objects.filter(
@@ -157,7 +160,7 @@ class ProspectClientForm(forms.Form):
 
         for field_name in self.fields:
             self.fields[field_name].widget.attrs.update({
-                "class": "min-w-0 flex-1 rounded border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-[#00d4aa]/50 focus:ring-1 focus:ring-[#00d4aa]/30"
+                "class": "min-w-0 w-full rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] placeholder-[#353535]/30 outline-none transition focus:border-[#5ca197] focus:ring-1 focus:ring-[#5ca197]/30"
             })
 
 
@@ -199,15 +202,15 @@ class ProspectActivityForm(forms.Form):
         self.fields["activity_date"].initial = timezone.now().date()
 
         self.fields["activity_type"].widget.attrs.update({
-            "class": "rounded border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100 outline-none transition focus:border-[#00d4aa]/50 focus:ring-1 focus:ring-[#00d4aa]/30"
+            "class": "rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] outline-none transition focus:border-[#5ca197] focus:ring-1 focus:ring-[#5ca197]/30"
         })
 
         self.fields["activity_date"].widget.attrs.update({
-            "class": "min-w-0 flex-1 rounded border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-[#00d4aa]/50 focus:ring-1 focus:ring-[#00d4aa]/30"
+            "class": "min-w-0 flex-1 rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] placeholder-[#353535]/30 outline-none transition focus:border-[#5ca197] focus:ring-1 focus:ring-[#5ca197]/30"
         })
-        
+
         self.fields["activity_description"].widget.attrs.update({
-            "class": "min-w-0 flex-1 rounded border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-[#00d4aa]/50 focus:ring-1 focus:ring-[#00d4aa]/30"
+            "class": "min-w-0 flex-1 rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] placeholder-[#353535]/30 outline-none transition focus:border-[#5ca197] focus:ring-1 focus:ring-[#5ca197]/30"
         })
 
 
@@ -242,6 +245,6 @@ class ProspectLinkClientForm(forms.Form):
 
         self.fields["registered_client"].widget.attrs.update(
             {
-                "class": "min-w-0 flex-1 rounded border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-[#00d4aa]/50 focus:ring-1 focus:ring-[#00d4aa]/30"
+                "class": "min-w-0 w-full rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] placeholder-[#353535]/30 outline-none transition focus:border-[#5ca197] focus:ring-1 focus:ring-[#5ca197]/30"
             }
         )

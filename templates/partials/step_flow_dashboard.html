@@ -6,7 +6,7 @@
     </span>
 
     <div class="mx-auto max-w-7xl">
-        <div class="relative space-y-6 lg:grid lg:grid-cols-5 lg:gap-6 lg:space-y-0">
+        <div class="relative space-y-6 lg:grid lg:grid-cols-6 lg:gap-6 lg:space-y-0">
         <div class="pointer-events-none absolute left-[10%] right-[10%] top-5 hidden h-0.5 bg-[#d9d9d9] lg:block"></div>
 
         <!-- Step 1 -->
@@ -67,24 +67,52 @@
 
         <!-- Step 4 -->
         <div class="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
-            <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold lg:left-1/2 lg:-translate-x-1/2 {% if organization_count > 0 %}border-[#5ca197] bg-[#5ca197] text-white ring-1 ring-[#5ca197]/40 shadow-[0_0_0_4px_rgba(92,161,151,0.22),0_10px_20px_rgba(46,85,88,0.2)]{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}">4</div>
+            <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold lg:left-1/2 lg:-translate-x-1/2 {% if organization_count > 0 and pending_verification_count > 0 %}border-[#5ca197] bg-[#5ca197] text-white ring-1 ring-[#5ca197]/40 shadow-[0_0_0_4px_rgba(92,161,151,0.22),0_10px_20px_rgba(46,85,88,0.2)]{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}">4</div>
             <div class="absolute bottom-[-1.5rem] left-5 top-10 w-0.5 bg-[#d9d9d9] lg:hidden"></div>
             <h3 class="mb-2 font-display text-base font-semibold text-[#284b63]">
-                {% if request.LANGUAGE_CODE == 'pl' %}Xoaila generuje dane AI-ready{% else %}Xoaila generates AI-ready data{% endif %}
+                {% if request.LANGUAGE_CODE == 'pl' %}
+                    {% if verified_organization_count > 0 and pending_verification_count == 0 %}Strona zweryfikowana{% else %}Strona w trakcie weryfikacji{% endif %}
+                {% else %}
+                    {% if verified_organization_count > 0 and pending_verification_count == 0 %}Page verified{% else %}Page under verification{% endif %}
+                {% endif %}
             </h3>
             <p class="font-sans text-sm leading-relaxed text-[#353535]/60">
-                {% if request.LANGUAGE_CODE == 'pl' %}Automatycznie tworzy wszystkie formaty: JSON, JSON-LD, Markdown, llms.txt.{% else %}Automatically creates all formats: JSON, JSON-LD, Markdown, llms.txt.{% endif %}
+                {% if request.LANGUAGE_CODE == 'pl' %}
+                    {% if organization_count == 0 %}Najpierw dodaj stronę firmy.{% elif pending_verification_count > 0 %}Ten krok trwa. Czekamy na weryfikację przez administratora.{% else %}Krok wykonany.{% endif %}
+                {% else %}
+                    {% if organization_count == 0 %}Add a company page first.{% elif pending_verification_count > 0 %}This step is in progress. Waiting for administrator verification.{% else %}Step completed.{% endif %}
+                {% endif %}
             </p>
         </div>
 
         <!-- Step 5 -->
         <div class="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
-            <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold lg:left-1/2 lg:-translate-x-1/2 {% if organization_count > 0 %}border-[#5ca197] bg-[#5ca197] text-white ring-1 ring-[#5ca197]/40 shadow-[0_0_0_4px_rgba(92,161,151,0.22),0_10px_20px_rgba(46,85,88,0.2)]{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}">5</div>
+            <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold lg:left-1/2 lg:-translate-x-1/2 {% if verified_organization_count > 0 %}border-[#5ca197] bg-[#5ca197] text-white ring-1 ring-[#5ca197]/40 shadow-[0_0_0_4px_rgba(92,161,151,0.22),0_10px_20px_rgba(46,85,88,0.2)]{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}">5</div>
+            <div class="absolute bottom-[-1.5rem] left-5 top-10 w-0.5 bg-[#d9d9d9] lg:hidden"></div>
+            <h3 class="mb-2 font-display text-base font-semibold text-[#284b63]">
+                {% if request.LANGUAGE_CODE == 'pl' %}Xoaila generuje dane AI-ready{% else %}Xoaila generates AI-ready data{% endif %}
+            </h3>
+            <p class="font-sans text-sm leading-relaxed text-[#353535]/60">
+                {% if request.LANGUAGE_CODE == 'pl' %}
+                    {% if verified_organization_count > 0 %}Automatycznie tworzymy formaty: JSON, JSON-LD, Markdown i llms.txt.{% else %}Po weryfikacji strony wygenerujemy dane AI-ready.{% endif %}
+                {% else %}
+                    {% if verified_organization_count > 0 %}We automatically create formats: JSON, JSON-LD, Markdown and llms.txt.{% else %}After verification, we will generate AI-ready data.{% endif %}
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
+            <div class="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-base font-bold lg:left-1/2 lg:-translate-x-1/2 {% if verified_organization_count > 0 %}border-[#5ca197] bg-[#5ca197] text-white ring-1 ring-[#5ca197]/40 shadow-[0_0_0_4px_rgba(92,161,151,0.22),0_10px_20px_rgba(46,85,88,0.2)]{% else %}border-[#284b63] bg-white text-[#284b63]{% endif %}">6</div>
             <h3 class="mb-2 font-display text-base font-semibold text-[#284b63]">
                 {% if request.LANGUAGE_CODE == 'pl' %}AI widzi Twoją firmę{% else %}AI sees your company{% endif %}
             </h3>
             <p class="font-sans text-sm leading-relaxed text-[#353535]/60">
-                {% if request.LANGUAGE_CODE == 'pl' %}Modele AI mogą analizować, cytować i rekomendować Twoją firmę.{% else %}AI models can analyze, cite and recommend your company.{% endif %}
+                {% if request.LANGUAGE_CODE == 'pl' %}
+                    {% if verified_organization_count > 0 %}Modele AI mogą analizować, cytować i rekomendować Twoją firmę.{% else %}Po publikacji danych AI będzie widziało Twoją firmę.{% endif %}
+                {% else %}
+                    {% if verified_organization_count > 0 %}AI models can analyze, cite and recommend your company.{% else %}After data publication, AI will see your company.{% endif %}
+                {% endif %}
             </p>
         </div>
     </div>

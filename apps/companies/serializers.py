@@ -1,13 +1,15 @@
 from rest_framework import serializers
 
-from .models import ContentEntry, Organization, Product, SocialProfile, Tag
+from .models import ContentEntry, Organization, Product, SocialProfile, Tag, Page
 from .services import public_feed_urls
+from .page_serializers import PageSerializer
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
     subscription_tier = serializers.SerializerMethodField()
     feature_matrix = serializers.SerializerMethodField()
     public_urls = serializers.SerializerMethodField()
+    pages = PageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Organization
@@ -36,6 +38,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "public_urls",
             "created_at",
             "updated_at",
+            "pages",
         )
         read_only_fields = ("id", "owner", "subscription_tier", "feature_matrix", "public_urls", "created_at", "updated_at")
         extra_kwargs = {
@@ -50,6 +53,13 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     def get_public_urls(self, obj):
         return public_feed_urls(obj, self.context.get("request"))
+
+
+class PageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Page
+        fields = ("id", "name", "url", "verification_status", "verified_at", "verified_by")
+        read_only_fields = ("id", "verified_at", "verified_by")
 
 
 class PlanLimitedModelSerializer(serializers.ModelSerializer):

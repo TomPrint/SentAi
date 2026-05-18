@@ -67,8 +67,13 @@ class DashboardHomeView(UserOrganizationQuerysetMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         organizations = self.get_queryset()
+        verified_organization_count = organizations.filter(
+            verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED
+        ).count()
         context["organizations"] = organizations
         context["organization_count"] = organizations.count()
+        context["verified_organization_count"] = verified_organization_count
+        context["pending_verification_count"] = organizations.count() - verified_organization_count
         context["organization_limit"] = self.current_organization_limit()
         context["can_create_organization"] = self.can_create_organization()
         return context
@@ -428,6 +433,11 @@ class ClientListView(AdminRequiredMixin, TemplateView):
             .annotate(primary_organization_website=models.Subquery(first_organization_website_subquery))
             .annotate(is_verified=models.Exists(verified_organization_subquery))
             .annotate(organization_count=models.Count("organizations", distinct=True))
+            .annotate(verified_organization_count=models.Count(
+                "organizations",
+                filter=models.Q(organizations__verification_status=VerificationStatus.HUMAN_ADMIN_VERIFIED),
+                distinct=True,
+            ))
             .annotate(last_reviewed_at=models.Max("organizations__last_reviewed_at"))
             .prefetch_related("organizations")
         )
@@ -550,6 +560,92 @@ class OrganizationReviewView(AdminRequiredMixin, View):
         return reverse("dashboard:client-detail", kwargs={"pk": owner_id})
 
 
+class ClientChangeSellerView(AdminRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        from apps.sales.models import ProspectClient
+
+        client = get_object_or_404(
+            User,
+            pk=pk,
+            is_superuser=False,
+            account_type=AccountType.CLIENT,
+        )
+        seller_id = request.POST.get("seller_id", "").strip()
+        if not seller_id:
+            if request.LANGUAGE_CODE == "pl":
+                messages.error(request, "Nie wybrano opiekuna.")
+            else:
+                messages.error(request, "No seller selected.")
+            return redirect(reverse("dashboard:client-detail", kwargs={"pk": pk}))
+
+        new_seller = get_object_or_404(
+            User.objects.filter(
+                models.Q(account_type=AccountType.STAFF) | models.Q(is_superuser=True)
+            ),
+            pk=seller_id,
+        )
+
+        attributed_prospect = getattr(client, "attributed_prospect", None)
+        settlement = getattr(client, "seller_settlement", None)
+
+        if attributed_prospect is not None:
+            attributed_prospect.seller = new_seller
+            attributed_prospect.save(update_fields=["seller", "updated_at"])
+        elif settlement is not None:
+            settlement.seller = new_seller
+            settlement.save(update_fields=["seller"])
+        else:
+            ProspectClient.objects.create(
+                seller=new_seller,
+                registered_client=client,
+                company_name=client.company_name or client.email,
+                contact_person=client.email,
+                email=client.email,
+                phone="",
+            )
+
+        if request.LANGUAGE_CODE == "pl":
+            messages.success(request, f"Opiekun klienta zmieniony na: {new_seller.username}.")
+        else:
+            messages.success(request, f"Account owner changed to: {new_seller.username}.")
+        return redirect(reverse("dashboard:client-detail", kwargs={"pk": pk}))
+
+
+class OrganizationVerifyView(AdminRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        organization = get_object_or_404(
+            Organization.objects.select_related("owner"),
+            pk=pk,
+        )
+        action = request.POST.get("action", "verify")
+        if action == "unverify":
+            organization.verification_status = VerificationStatus.UNVERIFIED
+            organization.save(update_fields=["verification_status", "updated_at"])
+            if request.LANGUAGE_CODE == "pl":
+                messages.success(request, f"Cofnięto weryfikację: {organization.name}.")
+            else:
+                messages.success(request, f"Verification removed: {organization.name}.")
+        else:
+            organization.verification_status = VerificationStatus.HUMAN_ADMIN_VERIFIED
+            if organization.verified_at is None:
+                organization.verified_at = timezone.now()
+            if organization.verified_by_id is None:
+                organization.verified_by = request.user
+            organization.save(update_fields=["verification_status", "verified_at", "verified_by", "updated_at"])
+            if request.LANGUAGE_CODE == "pl":
+                messages.success(request, f"Strona zweryfikowana: {organization.name}.")
+            else:
+                messages.success(request, f"Page verified: {organization.name}.")
+
+        return redirect(self._next_url(request, organization.owner_id))
+
+    def _next_url(self, request, owner_id):
+        next_url = request.POST.get("next") or reverse("dashboard:client-detail", kwargs={"pk": owner_id})
+        if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return next_url
+        return reverse("dashboard:client-detail", kwargs={"pk": owner_id})
+
+
 class ClientDetailView(AdminRequiredMixin, TemplateView):
     template_name = "dashboard/client_detail.html"
 
@@ -586,11 +682,16 @@ class ClientDetailView(AdminRequiredMixin, TemplateView):
                 primary_organization.country,
             ]
 
+        available_sellers = User.objects.filter(
+            models.Q(account_type=AccountType.STAFF) | models.Q(is_superuser=True)
+        ).order_by("username")
+
         context["client"] = client
         context["client_seller"] = seller
         context["client_prospect"] = attributed_prospect
         context["client_phone_number"] = phone_number
         context["client_address"] = ", ".join(part for part in address_parts if part)
+        context["available_sellers"] = available_sellers
         context["organizations"] = [
             {
                 "organization": organization,
@@ -963,6 +1064,7 @@ class ProspectCreateView(SellerRequiredMixin, FormView):
             contact_person=form.cleaned_data["contact_person"],
             email=form.cleaned_data["email"],
             phone=form.cleaned_data["phone"],
+            website_url=form.cleaned_data.get("website_url", ""),
             notes=form.cleaned_data.get("notes", ""),
             registered_client=form.cleaned_data.get("registered_client"),
         )

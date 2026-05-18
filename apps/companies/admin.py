@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import ContentEntry, Organization, Product, SocialProfile, Tag, VerificationStatus
+from .models import ContentEntry, Organization, Product, SocialProfile, Tag, VerificationStatus, Page
 
 
 @admin.register(Organization)
@@ -68,3 +68,29 @@ class ContentEntryAdmin(admin.ModelAdmin):
     list_display = ("title", "organization", "entry_type", "published_at", "is_featured")
     list_filter = ("entry_type", "is_featured")
     search_fields = ("title", "organization__name")
+
+
+@admin.register(Page)
+class PageAdmin(admin.ModelAdmin):
+    list_display = ("name", "organization", "url", "verification_status", "verified_at", "verified_by")
+    list_filter = ("verification_status",)
+    search_fields = ("name", "organization__name", "url")
+    actions = ("mark_as_human_admin_verified", "mark_as_unverified")
+
+    @admin.action(description="Mark selected pages as human admin verified")
+    def mark_as_human_admin_verified(self, request, queryset):
+        for page in queryset:
+            page.verification_status = VerificationStatus.HUMAN_ADMIN_VERIFIED
+            if page.verified_at is None:
+                page.verified_at = timezone.now()
+            if page.verified_by_id is None:
+                page.verified_by = request.user
+            page.save(update_fields=["verification_status", "verified_at", "verified_by"])
+
+    @admin.action(description="Mark selected pages as unverified")
+    def mark_as_unverified(self, request, queryset):
+        queryset.update(
+            verification_status=VerificationStatus.UNVERIFIED,
+            verified_at=None,
+            verified_by=None,
+        )

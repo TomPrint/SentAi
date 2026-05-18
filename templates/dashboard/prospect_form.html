@@ -74,6 +74,12 @@
                     </label>
                     {{ form.phone }}
                 </div>
+                <div class="sm:col-span-2">
+                    <label class="mb-1 block font-mono text-[10px] uppercase tracking-widest text-[#353535]/40" for="{{ form.website_url.id_for_label }}">
+                        {{ form.website_url.label }}
+                    </label>
+                    {{ form.website_url }}
+                </div>
             </div>
 
             <div>
@@ -89,7 +95,7 @@
                 </label>
                 <div id="prospect-client-picker" class="relative min-w-full">
                     <button type="button" id="prospect-client-trigger"
-                            class="w-full inline-flex items-center justify-between rounded border border-[#5ca197]/40 bg-[#0d1117] px-3 py-2 font-mono text-xs text-[#353535] transition hover:border-[#5ca197]/60 focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20">
+                            class="w-full inline-flex items-center justify-between rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-xs text-[#353535] transition hover:border-[#5ca197]/60 focus:border-[#5ca197] focus:outline-none focus:ring-2 focus:ring-[#5ca197]/20">
                         <span id="prospect-client-label">
                             {% if request.LANGUAGE_CODE == 'pl' %}Wybierz klienta{% else %}Choose client{% endif %}
                         </span>
@@ -97,16 +103,16 @@
                     </button>
 
                     <div id="prospect-client-menu"
-                         class="prospect-client-picker-menu absolute left-0 top-full z-30 mt-2 hidden max-h-56 w-full overflow-auto rounded border border-[#5ca197]/40 bg-[#0d1117] p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
+                         class="prospect-client-picker-menu absolute left-0 top-full z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded border border-[#d9d9d9] bg-white p-1 shadow-md">
                         <button type="button"
-                                class="prospect-client-option w-full rounded px-3 py-2 text-left font-mono text-xs text-[#353535]/60 transition hover:bg-white/10 hover:text-[#353535]"
+                                class="prospect-client-option w-full rounded px-3 py-2 text-left font-mono text-xs text-[#353535]/50 transition hover:bg-[#5ca197]/10 hover:text-[#353535]"
                                 data-value=""
                                 data-label="{% if request.LANGUAGE_CODE == 'pl' %}Wybierz klienta{% else %}Choose client{% endif %}">
                             {% if request.LANGUAGE_CODE == 'pl' %}Brak powiązania{% else %}No link{% endif %}
                         </button>
                         {% for client in form.fields.registered_client.queryset %}
                             <button type="button"
-                                    class="prospect-client-option w-full rounded px-3 py-2 text-left font-mono text-xs text-[#353535] transition hover:bg-[#5ca197]/20 hover:text-[#5ca197]"
+                                    class="prospect-client-option w-full rounded px-3 py-2 text-left font-mono text-xs text-[#353535] transition hover:bg-[#5ca197]/10 hover:text-[#5ca197]"
                                     data-value="{{ client.pk }}"
                                     data-label="{% firstof client.company_name client.get_full_name client.username %}">
                                 {% firstof client.company_name client.get_full_name client.username %}

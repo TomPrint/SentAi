@@ -208,28 +208,33 @@
     <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(40,75,99,0.06),transparent)]" aria-hidden="true"></div>
 
     <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="grid gap-12 lg:grid-cols-2 lg:gap-16 lg:items-center">
 
-            <!-- Left: text -->
-            <div class="max-w-2xl">
-                <!-- Badge -->
-                <div class="inline-flex items-center gap-2 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 mb-6">
-                    <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197]"></span>
-                    <span class="font-mono text-[11px] font-medium uppercase tracking-widest text-[#5ca197]">AI-native data publishing</span>
-                </div>
+        <!-- Full-width: badge + headline -->
+        <div>
+            <!-- Badge -->
+            <div class="inline-flex items-center gap-2 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 mb-6">
+                <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197]"></span>
+                <span class="font-mono text-[11px] font-medium uppercase tracking-widest text-[#5ca197]">AI-native data publishing</span>
+            </div>
 
-                <!-- Headline -->
-                <h1 class="font-display font-bold tracking-tight text-[#284b63] leading-tight">
-                    <span class="block text-4xl sm:text-5xl lg:text-6xl">
-                        {% if request.LANGUAGE_CODE == 'pl' %}AI już odpowiada za klientów.{% else %}AI already answers for customers.{% endif %}
-                    </span>
-                    <span class="block text-4xl sm:text-5xl lg:text-6xl mt-1 text-[#5ca197]">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Czy zna Twoją firmę?{% else %}Does it know your company?{% endif %}
-                    </span>
-                </h1>
+            <!-- Headline -->
+            <h1 class="font-display font-bold tracking-tight text-[#284b63] leading-tight">
+                <span class="block text-4xl sm:text-5xl lg:text-6xl">
+                    {% if request.LANGUAGE_CODE == 'pl' %}AI już odpowiada za klientów.{% else %}AI already answers for customers.{% endif %}
+                </span>
+                <span class="block text-4xl sm:text-5xl lg:text-6xl mt-1 text-[#5ca197]">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Czy zna Twoją firmę?{% else %}Does it know your company?{% endif %}
+                </span>
+            </h1>
+        </div>
 
+        <!-- Two-column grid below headline -->
+        <div class="mt-10 grid gap-12 lg:grid-cols-2 lg:gap-16 lg:items-start">
+
+            <!-- Left: description + format tabs + CTAs -->
+            <div>
                 <!-- Sub-headline -->
-                <p class="mt-6 text-lg sm:text-xl font-medium text-[#353535]/80 leading-relaxed">
+                <p class="text-lg sm:text-xl font-medium text-[#353535]/80 leading-relaxed">
                     {% if request.LANGUAGE_CODE == 'pl' %}
                         Publikuj dane firmy w formacie gotowym dla ChatGPT, Claude, Gemini i wyszukiwarek AI.
                     {% else %}

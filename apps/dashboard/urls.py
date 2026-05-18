@@ -1,11 +1,13 @@
 from django.urls import path
 
 from .views import (
+    ClientChangeSellerView,
     ClientDetailView,
     ClientListView,
     ClientVerifyView,
     DashboardHomeView,
     OrganizationReviewView,
+    OrganizationVerifyView,
     PlanCheckoutCancelView,
     PlanCheckoutSuccessView,
     OrganizationCreateView,
@@ -39,8 +41,10 @@ urlpatterns = [
     path("organizations/<int:pk>/edit/", OrganizationUpdateView.as_view(), name="organization-edit"),
     path("organizations/<int:pk>/delete/", OrganizationDeleteView.as_view(), name="organization-delete"),
     path("organizations/<int:pk>/review/", OrganizationReviewView.as_view(), name="organization-review"),
+    path("organizations/<int:pk>/verify/", OrganizationVerifyView.as_view(), name="organization-verify"),
     path("clients/", ClientListView.as_view(), name="client-list"),
     path("clients/<int:pk>/verify/", ClientVerifyView.as_view(), name="client-verify"),
+    path("clients/<int:pk>/change-seller/", ClientChangeSellerView.as_view(), name="client-change-seller"),
     path("clients/<int:pk>/", ClientDetailView.as_view(), name="client-detail"),
     path("sellers/", SellerListView.as_view(), name="seller-list"),
     path("reports/seller-activities/", SellerActivityReportView.as_view(), name="report-seller-activities"),

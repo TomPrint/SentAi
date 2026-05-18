@@ -107,23 +107,22 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3">
-                            {% if client.is_verified %}
-                                <span class="inline-flex items-center rounded-full border border-[#5ca197]/30 bg-[#5ca197]/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">Verified</span>
-                            {% elif client.primary_organization_name %}
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-50 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-amber-600 transition hover:border-amber-400 hover:bg-amber-100"
-                                    data-verify-trigger
-                                    data-client-id="{{ client.pk }}"
-                                    data-verify-url="{% url 'dashboard:client-verify' client.pk %}"
-                                    data-client-name="{{ client.company_name|default:client.email }}"
-                                    data-company-name="{{ client.primary_organization_name }}"
-                                    data-company-website="{{ client.primary_organization_website|default:'' }}"
-                                >
-                                    Unverified
-                                </button>
+                            {% if client.organization_count == 0 %}
+                                <span class="inline-flex items-center rounded-full border border-[#d9d9d9] bg-[#f5f5f5] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/50">
+                                    {% if request.LANGUAGE_CODE == 'pl' %}Brak strony{% else %}No page{% endif %}
+                                </span>
+                            {% elif client.verified_organization_count == client.organization_count %}
+                                <span class="inline-flex items-center rounded-full border border-[#5ca197]/30 bg-[#5ca197]/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
+                                    {% if request.LANGUAGE_CODE == 'pl' %}Zweryfikowano{% else %}Verified{% endif %}
+                                </span>
                             {% else %}
-                                <span class="inline-flex items-center rounded-full border border-[#d9d9d9] bg-[#f5f5f5] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/50">No page</span>
+                                <a href="{% url 'dashboard:client-detail' client.pk %}"
+                                   class="inline-flex items-center whitespace-nowrap rounded-full border border-amber-400/40 bg-amber-50 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-amber-600 transition hover:border-amber-400 hover:bg-amber-100">
+                                    {% if request.LANGUAGE_CODE == 'pl' %}Weryfikuj{% else %}Pending{% endif %}
+                                    {% if client.verified_organization_count > 0 %}
+                                        <span class="ml-1 opacity-60">({{ client.verified_organization_count }}/{{ client.organization_count }})</span>
+                                    {% endif %}
+                                </a>
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 font-mono text-[#353535]/60">

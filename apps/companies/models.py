@@ -262,3 +262,29 @@ class ContentEntry(models.Model):
         primary_value = getattr(self, f"summary_{language}", "")
         fallback_value = getattr(self, f"summary_{fallback}", "")
         return primary_value or fallback_value or ""
+
+
+class Page(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="pages",
+    )
+    name = models.CharField(max_length=255)
+    url = models.URLField()
+    verification_status = models.CharField(
+        max_length=32,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.UNVERIFIED,
+    )
+    verified_at = models.DateTimeField(blank=True, null=True)
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verified_pages",
+    )
+
+    def __str__(self):
+        return self.name

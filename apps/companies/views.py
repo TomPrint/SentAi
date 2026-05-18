@@ -7,7 +7,7 @@ from django.conf import settings
 from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import is_aware, make_aware
@@ -685,3 +685,62 @@ class SitemapXmlView(APIView):
             lines.append("  </url>")
         lines.append("</urlset>")
         return HttpResponse("\n".join(lines), content_type="application/xml; charset=utf-8")
+
+
+class OrganizationVerificationStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        organization = get_object_or_404(Organization, id=kwargs['organization_id'])
+        pages = organization.pages.all()
+
+        if all(page.verification_status == VerificationStatus.HUMAN_ADMIN_VERIFIED for page in pages):
+            overall_status = "Zweryfikowano"
+        else:
+            overall_status = "Do weryfikacji"
+
+        return Response({
+            "organization": organization.name,
+            "overall_status": overall_status,
+            "pages": [
+                {
+                    "name": page.name,
+                    "url": page.url,
+                    "verification_status": page.verification_status,
+                }
+                for page in pages
+            ]
+        })
+
+
+class ClientDetailView(TemplateView):
+    template_name = "dashboard/client_detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        organization = get_object_or_404(Organization, id=kwargs['organization_id'])
+        context['organization'] = organization
+        context['pages'] = organization.pages.all()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        organization = get_object_or_404(Organization, id=kwargs['organization_id'])
+        page_id = request.POST.get("page_id")
+        action = request.POST.get("action")
+
+        if page_id and action:
+            page = get_object_or_404(organization.pages, id=page_id)
+            if action == "verify":
+                page.verification_status = VerificationStatus.HUMAN_ADMIN_VERIFIED
+                page.verified_at = timezone.now()
+                page.verified_by = request.user
+                page.save()
+                messages.success(request, f"Strona {page.name} została zweryfikowana.")
+            elif action == "unverify":
+                page.verification_status = VerificationStatus.UNVERIFIED
+                page.verified_at = None
+                page.verified_by = None
+                page.save()
+                messages.success(request, f"Weryfikacja strony {page.name} została cofnięta.")
+
+        return redirect(reverse("dashboard:client-detail", kwargs={"organization_id": organization.id}))
