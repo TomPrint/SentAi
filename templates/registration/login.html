@@ -1,48 +1,68 @@
 {% extends 'base.html' %}
-{% load static %}
 
 {% block content %}
-<section class="mx-auto grid w-full max-w-5xl gap-4 overflow-hidden rounded-xl border border-[#d9d9d9] bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_0.8fr] lg:p-5">
+<style>
+    .wave-panel { background: linear-gradient(160deg, #284b63 0%, #3a6b6a 50%, #5ca197 100%); }
 
-    <!-- Left: visual / brand panel -->
-    <div class="relative min-h-[260px] overflow-hidden rounded-xl border border-[#d9d9d9] bg-white sm:min-h-[340px] lg:min-h-[480px]">
-        <video
-            class="h-full w-full object-cover opacity-20 mix-blend-multiply"
-            autoplay
-            muted
-            loop
-            playsinline
-            preload="metadata"
-            aria-label="xoaila background video"
-        >
-            <source src="{% get_media_prefix %}movie_landing_page_2.mp4" type="video/mp4">
-        </video>
+    .wave svg { display: block; }
 
-        <div class="absolute inset-0 bg-gradient-to-tr from-white/80 via-white/10 to-white/30"></div>
-        <div class="absolute bottom-0 left-0 p-5 sm:p-7 lg:p-8">
-            <div class="inline-flex items-end gap-2 font-display text-3xl font-bold tracking-tight text-[#284b63] sm:text-4xl lg:text-5xl">
-                <span>xoaila</span>
-                <span class="mb-1 h-3 w-3 rounded-full bg-[#5ca197] shrink-0"></span>
+    @keyframes wave-drift-1 { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-60px); } }
+    @keyframes wave-drift-2 { 0%,100% { transform: translateX(0); } 50% { transform: translateX(60px); } }
+    @keyframes wave-drift-3 { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-40px); } }
+
+    .wave-1 { animation: wave-drift-1 8s ease-in-out infinite; }
+    .wave-2 { animation: wave-drift-2 11s ease-in-out infinite; }
+    .wave-3 { animation: wave-drift-3 14s ease-in-out infinite; }
+
+    @keyframes float-dot { 0%,100% { transform: translateY(0); opacity:.7; } 50% { transform: translateY(-18px); opacity:1; } }
+    .dot-1 { animation: float-dot 5s ease-in-out infinite; }
+    .dot-2 { animation: float-dot 7s ease-in-out infinite 1s; }
+    .dot-3 { animation: float-dot 6s ease-in-out infinite 2.5s; }
+
+    @keyframes pulse-ring { 0% { transform: scale(.85); opacity:.5; } 100% { transform: scale(1.5); opacity:0; } }
+    .pulse-ring { animation: pulse-ring 3s ease-out infinite; }
+</style>
+
+<section class="mx-auto w-full max-w-5xl overflow-hidden rounded-xl border border-[#d9d9d9] bg-white shadow-sm lg:grid lg:grid-cols-[1fr_2fr]">
+
+    <!-- Left: wave animation panel -->
+    <div class="wave-panel relative hidden flex-col items-center justify-center overflow-hidden p-10 lg:flex">
+
+        <div class="dot-1 absolute left-10 top-16 h-3 w-3 rounded-full bg-white/30"></div>
+        <div class="dot-2 absolute right-14 top-24 h-2 w-2 rounded-full bg-[#5ca197]/60"></div>
+        <div class="dot-3 absolute bottom-20 left-16 h-4 w-4 rounded-full bg-white/20"></div>
+
+        <div class="relative z-10 mb-8 flex flex-col items-center gap-5 text-center">
+            <div class="relative">
+                <div class="pulse-ring absolute inset-0 rounded-full border-2 border-white/30"></div>
+                <span class="font-display text-5xl font-bold tracking-tight text-white" style="text-shadow: 0 0 40px rgba(255,255,255,0.5), 0 2px 16px rgba(0,0,0,0.25);">xoaila</span><span class="ml-1 inline-block h-3 w-3 rounded-full bg-white" style="box-shadow: 0 0 12px rgba(255,255,255,0.8);"></span>
             </div>
-            <p class="mt-4 max-w-xl font-display text-lg font-semibold leading-snug tracking-tight text-[#284b63] sm:text-xl lg:text-2xl">
-                {% if request.LANGUAGE_CODE == 'pl' %}
-                    AI już odpowiada za klientów. Upewnij się, że zna Twoją firmę.
-                {% else %}
-                    AI already answers for customers. Make sure it knows your company.
-                {% endif %}
+            <p class="max-w-[220px] text-base font-medium leading-relaxed text-white/85" style="text-shadow: 0 1px 8px rgba(0,0,0,0.3);">
+                {% if request.LANGUAGE_CODE == 'pl' %}AI już odpowiada za klientów. Upewnij się, że zna Twoją firmę.{% else %}AI already answers for customers. Make sure it knows your company.{% endif %}
             </p>
-            <p class="mt-2 font-mono text-[11px] text-[#353535]/40">
-                {% if request.LANGUAGE_CODE == 'pl' %}
-                    AI-native data publishing
-                {% else %}
-                    AI-native data publishing
-                {% endif %}
-            </p>
+        </div>
+
+        <div class="wave absolute bottom-0 left-0 w-full">
+            <div class="wave-1">
+                <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="width:160%;height:60px;margin-left:-30%;">
+                    <path d="M0,60 C200,110 400,10 600,60 C800,110 1000,10 1200,60 L1200,120 L0,120 Z" fill="rgba(255,255,255,0.07)"/>
+                </svg>
+            </div>
+            <div class="wave-2" style="margin-top:-40px;">
+                <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="width:160%;height:70px;margin-left:-30%;">
+                    <path d="M0,40 C150,90 350,0 600,50 C850,100 1050,5 1200,45 L1200,120 L0,120 Z" fill="rgba(255,255,255,0.1)"/>
+                </svg>
+            </div>
+            <div class="wave-3" style="margin-top:-50px;">
+                <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="width:160%;height:80px;margin-left:-30%;">
+                    <path d="M0,70 C250,20 450,110 700,55 C950,0 1100,80 1200,60 L1200,120 L0,120 Z" fill="rgba(255,255,255,0.06)"/>
+                </svg>
+            </div>
         </div>
     </div>
 
     <!-- Right: login form -->
-    <div class="rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-5 sm:p-6 lg:p-7">
+    <div class="p-6 lg:p-8">
         <span class="inline-flex items-center gap-1.5 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
             <span class="h-1.5 w-1.5 rounded-full bg-[#5ca197]"></span>
             {% if request.LANGUAGE_CODE == 'pl' %}Panel klienta{% else %}Client panel{% endif %}

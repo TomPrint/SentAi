@@ -163,6 +163,12 @@ class ProspectClientForm(forms.Form):
                 "class": "min-w-0 w-full rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] placeholder-[#353535]/30 outline-none transition focus:border-[#5ca197] focus:ring-1 focus:ring-[#5ca197]/30"
             })
 
+    def clean_website_url(self):
+        value = self.cleaned_data.get("website_url", "").strip()
+        if value and not value.startswith(("http://", "https://")):
+            value = "https://" + value
+        return value
+
 
 class ProspectActivityForm(forms.Form):
     activity_type = forms.ChoiceField(

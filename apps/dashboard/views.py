@@ -1076,6 +1076,72 @@ class ProspectCreateView(SellerRequiredMixin, FormView):
         return super().form_valid(form)
 
 
+class ProspectUpdateView(SellerRequiredMixin, FormView):
+    """Edit an existing prospect."""
+    form_class = ProspectClientForm
+    template_name = "dashboard/prospect_form.html"
+
+    def get_prospect(self):
+        from apps.sales.models import ProspectClient
+        return get_object_or_404(ProspectClient, pk=self.kwargs["pk"], seller=self.request.user)
+
+    def get_success_url(self):
+        return reverse("dashboard:prospect-detail", kwargs={"pk": self.kwargs["pk"]})
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["language_code"] = self.request.LANGUAGE_CODE
+        if self.request.method == "GET":
+            prospect = self.get_prospect()
+            kwargs["initial"] = {
+                "company_name": prospect.company_name,
+                "contact_person": prospect.contact_person,
+                "email": prospect.email,
+                "phone": prospect.phone,
+                "website_url": prospect.website_url,
+                "notes": prospect.notes,
+                "registered_client": prospect.registered_client_id,
+            }
+        return kwargs
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        prospect = self.get_prospect()
+        if prospect.registered_client_id:
+            form.fields["registered_client"].queryset = (
+                User.objects.filter(
+                    models.Q(
+                        account_type=AccountType.CLIENT,
+                        is_superuser=False,
+                        attributed_prospect__isnull=True,
+                    ) | models.Q(pk=prospect.registered_client_id)
+                ).order_by("email")
+            )
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_edit"] = True
+        context["prospect"] = self.get_prospect()
+        return context
+
+    def form_valid(self, form):
+        prospect = self.get_prospect()
+        prospect.company_name = form.cleaned_data["company_name"]
+        prospect.contact_person = form.cleaned_data["contact_person"]
+        prospect.email = form.cleaned_data["email"]
+        prospect.phone = form.cleaned_data["phone"]
+        prospect.website_url = form.cleaned_data.get("website_url", "")
+        prospect.notes = form.cleaned_data.get("notes", "")
+        prospect.registered_client = form.cleaned_data.get("registered_client")
+        prospect.save()
+        if self.request.LANGUAGE_CODE == "pl":
+            messages.success(self.request, "Dane prospektu zostały zaktualizowane.")
+        else:
+            messages.success(self.request, "Prospect updated successfully.")
+        return super().form_valid(form)
+
+
 class ProspectDetailView(SellerOrAdminRequiredMixin, TemplateView):
     """Show prospect details and activities."""
     template_name = "dashboard/prospect_detail.html"

@@ -43,22 +43,22 @@
             <table class="w-full text-left text-sm">
                 <thead>
                     <tr class="border-b border-white/[0.07] bg-[#f8fafa]">
-                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/65">
                             {% if request.LANGUAGE_CODE == 'pl' %}Nazwa firmy{% else %}Company name{% endif %}
                         </th>
-                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/65">
                             {% if request.LANGUAGE_CODE == 'pl' %}Osoba kontaktowa{% else %}Contact person{% endif %}
                         </th>
-                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/65">
                             {% if request.LANGUAGE_CODE == 'pl' %}E-mail{% else %}Email{% endif %}
                         </th>
-                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/65">
                             {% if request.LANGUAGE_CODE == 'pl' %}Telefon{% else %}Phone{% endif %}
                         </th>
-                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/65">
                             {% if request.LANGUAGE_CODE == 'pl' %}Sprzedawca{% else %}Seller{% endif %}
                         </th>
-                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/40">
+                        <th class="px-4 py-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#353535]/65">
                             {% if request.LANGUAGE_CODE == 'pl' %}Ostatnia aktywność{% else %}Last activity{% endif %}
                         </th>
                         <th class="px-4 py-3"></th>
@@ -95,10 +95,16 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 text-right">
+                            <div class="inline-flex gap-1.5">
+                            <a href="{% url 'dashboard:prospect-edit' prospect.pk %}"
+                               class="inline-flex min-h-7 items-center justify-center rounded border border-[#d9d9d9] bg-[#f5f5f5] px-3 py-1 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197]/40 hover:text-[#5ca197]">
+                                {% if request.LANGUAGE_CODE == 'pl' %}Edytuj{% else %}Edit{% endif %}
+                            </a>
                             <a href="{% url 'dashboard:prospect-detail' prospect.pk %}"
                                class="inline-flex min-h-7 items-center justify-center rounded border border-[#d9d9d9] bg-[#f5f5f5] px-3 py-1 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197]/40 hover:text-[#5ca197]">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Szczegóły{% else %}Details{% endif %} →
                             </a>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
