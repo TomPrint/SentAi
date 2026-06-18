@@ -74,9 +74,9 @@
                         {% endif %}
                     {% else %}
                         {% if stripe_test_mode %}
-                            // PLUS and PRO: payment via Stripe Checkout (test mode)
+                            // PLUS and PRO: yearly subscription via Stripe Checkout (test mode)
                         {% else %}
-                            // PLUS and PRO: payment via Stripe Checkout
+                            // PLUS and PRO: yearly subscription via Stripe Checkout
                         {% endif %}
                     {% endif %}
                 </p>
@@ -85,15 +85,57 @@
                     {% if request.LANGUAGE_CODE == 'pl' %}
                         // brak konfiguracji Stripe - p&#322;atno&#347;ci s&#261; wy&#322;&#261;czone
                     {% else %}
-                        // Stripe is not configured - payments are disabled
+                        // Stripe subscription prices are not configured - payments are disabled
                     {% endif %}
                 </p>
             {% endif %}
         </div>
+        <div class="flex shrink-0 flex-wrap gap-2">
+            {% for currency in billing_currencies %}
+                <a class="inline-flex min-h-9 items-center justify-center rounded border px-4 py-2 font-mono text-xs font-semibold uppercase transition {% if selected_billing_currency == currency %}border-[#5ca197] bg-[#5ca197] text-white{% else %}border-[#d9d9d9] bg-white text-[#353535]/60 hover:border-[#5ca197] hover:text-[#5ca197]{% endif %}" href="?currency={{ currency }}">
+                    {{ currency }}
+                </a>
+            {% endfor %}
+        </div>
     </div>
 
-    <form method="post">
+    <div class="mb-6 rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Dane do faktury{% else %}Billing details{% endif %}
+                </p>
+                {% if billing_profile and billing_profile.is_complete %}
+                    <p class="mt-1 text-sm leading-6 text-[#353535]/70">
+                        {% if request.LANGUAGE_CODE == 'pl' %}
+                            Zapisane: {{ billing_profile.country|upper }}. Stripe Checkout uzyje waluty {{ billing_profile.billing_currency|upper }}.
+                        {% else %}
+                            Saved: {{ billing_profile.country|upper }}. Stripe Checkout will use {{ billing_profile.billing_currency|upper }}.
+                        {% endif %}
+                    </p>
+                {% else %}
+                    <p class="mt-1 text-sm leading-6 text-[#353535]/70">
+                        {% if request.LANGUAGE_CODE == 'pl' %}
+                            Przed platnym planem uzupelnij dane. Polska firma placi w PLN, pozostale kraje placa w EUR.
+                        {% else %}
+                            Complete these before choosing a paid plan. Poland pays in PLN; all other countries pay in EUR.
+                        {% endif %}
+                    </p>
+                {% endif %}
+            </div>
+            <a class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'dashboard:billing-profile' %}">
+                {% if billing_profile and billing_profile.is_complete %}
+                    {% if request.LANGUAGE_CODE == 'pl' %}Edytuj dane{% else %}Edit details{% endif %}
+                {% else %}
+                    {% if request.LANGUAGE_CODE == 'pl' %}Uzupelnij dane{% else %}Complete details{% endif %}
+                {% endif %}
+            </a>
+        </div>
+    </div>
+
+    <form method="post" data-plan-form data-current-subscription-tier="{% if billing_subscription %}{{ billing_subscription.tier }}{% endif %}">
         {% csrf_token %}
+        {{ form.billing_currency }}
         <div class="grid gap-3 sm:grid-cols-3">
             {% for radio in form.plan_tier %}
                 {% with tier=radio.data.value %}
@@ -121,9 +163,9 @@
                                 {% if tier == 'BASIC' %}
                                     {% if request.LANGUAGE_CODE == 'pl' %}Darmowy{% else %}Free{% endif %}
                                 {% elif tier == 'PLUS' %}
-                                    {{ plus_price_label }}
+                                    {% if plus_price_label %}{{ plus_price_label }} / year{% else %}-{% endif %}
                                 {% else %}
-                                    {{ pro_price_label }}
+                                    {% if pro_price_label %}{{ pro_price_label }} / year{% else %}-{% endif %}
                                 {% endif %}
                             </span>
                         </div>
@@ -154,6 +196,52 @@
             <p class="mt-3 font-mono text-xs font-semibold text-rose-500">{{ form.plan_tier.errors|striptags }}</p>
         {% endif %}
 
+        {% if form.subscription_terms_accepted.errors %}
+            <p class="mt-3 font-mono text-xs font-semibold text-rose-500">{{ form.subscription_terms_accepted.errors|striptags }}</p>
+        {% endif %}
+
+        {% if billing_subscription and billing_subscription.status == 'active' %}
+            <div class="mt-4 rounded-xl border border-[#d9d9d9] bg-white p-4 text-sm leading-6 text-[#353535]/65">
+                {% if billing_subscription.tier == 'PLUS' %}
+                    {% if request.LANGUAGE_CODE == 'pl' %}
+                        Zmiana z PLUS na PRO wymaga zaplaty pelnej rocznej ceny PRO. Po platnosci subskrypcja PLUS konczy sie, PRO zaczyna sie od dzisiaj i startuje nowy roczny okres.
+                    {% else %}
+                        Changing from PLUS to PRO requires paying the full yearly PRO price. After payment, the PLUS subscription ends, PRO starts today, and a new yearly period begins.
+                    {% endif %}
+                {% elif billing_subscription.tier == 'PRO' %}
+                    {% if request.LANGUAGE_CODE == 'pl' %}
+                        Zmiana z PRO na PLUS jest zablokowana w trakcie oplaconego okresu. Anuluj odnowienie i rozpocznij PLUS po zakonczeniu obecnego roku.
+                    {% else %}
+                        Downgrading from PRO to PLUS is blocked during the paid period. Cancel renewal and start PLUS after the current year ends.
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if billing_subscription %}
+            <div class="mt-6 rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
+                            {% if request.LANGUAGE_CODE == 'pl' %}Twoja subskrypcja{% else %}Your subscription{% endif %}
+                        </p>
+                        <p class="mt-1 font-mono text-sm text-[#353535]/70">
+                            {{ billing_subscription.tier }} / {{ billing_subscription.status }}
+                            {% if billing_subscription.cancel_at_period_end %} / renewal canceled{% endif %}
+                            {% if billing_subscription.current_period_end %}
+                                / {% if billing_subscription.cancel_at_period_end %}{% if request.LANGUAGE_CODE == 'pl' %}aktywny do{% else %}active until{% endif %}{% else %}{% if request.LANGUAGE_CODE == 'pl' %}odnowienie{% else %}renews{% endif %}{% endif %}: {{ billing_subscription.current_period_end|date:"Y-m-d" }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if billing_subscription.stripe_customer_id %}
+                        <a class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'dashboard:billing-portal' %}">
+                            {% if request.LANGUAGE_CODE == 'pl' %}Zarzadzaj subskrypcja{% else %}Manage subscription{% endif %}
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
         <div class="mt-6 flex flex-wrap gap-2">
             <button class="inline-flex min-h-10 items-center justify-center rounded bg-[#284b63] px-5 py-2.5 font-sans text-sm font-semibold text-white shadow transition hover:bg-[#1e3a4f]" type="submit">
                 {% if request.LANGUAGE_CODE == 'pl' %}kontynuuj{% else %}continue{% endif %}
@@ -166,9 +254,171 @@
             {% if request.LANGUAGE_CODE == 'pl' %}
                 // BASIC aktywuje si&#281; od razu. PLUS/PRO przekierowuj&#261; do Stripe Checkout.
             {% else %}
-                // BASIC is activated immediately. PLUS/PRO redirect to Stripe Checkout.
+                // BASIC is activated immediately. PLUS/PRO are yearly subscriptions and redirect to Stripe Checkout.
             {% endif %}
         </p>
+
+        <div id="plus-pro-change-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-[#353535]/60 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="plus-pro-change-title">
+            <div class="w-full max-w-lg rounded-xl border border-[#d9d9d9] bg-white p-6 shadow-xl">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Zmiana planu{% else %}Plan change{% endif %}
+                </p>
+                <h2 id="plus-pro-change-title" class="mt-2 font-display text-2xl font-semibold tracking-tight text-[#284b63]">
+                    {% if request.LANGUAGE_CODE == 'pl' %}PLUS zostanie zastapiony przez PRO{% else %}PLUS will be replaced by PRO{% endif %}
+                </h2>
+                <div class="mt-4 space-y-3 rounded-lg border border-[#d9d9d9] bg-[#f8fafa] p-4 text-sm leading-6 text-[#353535]/70">
+                    {% if request.LANGUAGE_CODE == 'pl' %}
+                        <p>Po przejsciu do Stripe zaplacisz pelna roczna cene PRO.</p>
+                        <p>Po potwierdzeniu platnosci subskrypcja PLUS konczy sie, PRO zaczyna sie od dzisiaj i od dzisiaj liczony jest nowy roczny okres rozliczeniowy.</p>
+                    {% else %}
+                        <p>After continuing to Stripe, you will pay the full yearly PRO price.</p>
+                        <p>After payment is confirmed, the PLUS subscription ends, PRO starts today, and the new yearly billing period is counted from today.</p>
+                    {% endif %}
+                </div>
+                <div class="mt-6 flex flex-wrap justify-end gap-2">
+                    <button id="plus-pro-change-cancel" type="button" class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
+                        {% if request.LANGUAGE_CODE == 'pl' %}Anuluj{% else %}Cancel{% endif %}
+                    </button>
+                    <button id="plus-pro-change-accept" type="button" class="inline-flex min-h-10 items-center justify-center rounded bg-[#284b63] px-4 py-2 font-sans text-sm font-semibold text-white shadow transition hover:bg-[#1e3a4f]">
+                        {% if request.LANGUAGE_CODE == 'pl' %}Rozumiem, przejdz do Stripe{% else %}I understand, continue to Stripe{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="subscription-terms-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-[#353535]/60 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="subscription-terms-title">
+            <div class="w-full max-w-lg rounded-xl border border-[#d9d9d9] bg-white p-6 shadow-xl">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Warunki subskrypcji{% else %}Subscription terms{% endif %}
+                </p>
+                <h2 id="subscription-terms-title" class="mt-2 font-display text-2xl font-semibold tracking-tight text-[#284b63]">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Akceptacja przed p&#322;atno&#347;ci&#261;{% else %}Acceptance before payment{% endif %}
+                </h2>
+                <div class="mt-4 space-y-3 rounded-lg border border-[#d9d9d9] bg-[#f8fafa] p-4 text-sm leading-6 text-[#353535]/70">
+                    {% if request.LANGUAGE_CODE == 'pl' %}
+                        <p>To jest tymczasowa tre&#347;&#263; regulaminu subskrypcji. Wybrany plan p&#322;atny jest rozliczany jako subskrypcja roczna.</p>
+                        <p>Po przej&#347;ciu do Stripe podasz dane p&#322;atnicze. Subskrypcj&#281; b&#281;dzie mo&#380;na anulowa&#263; przed kolejnym okresem rozliczeniowym.</p>
+                    {% else %}
+                        <p>This is temporary subscription terms content. The selected paid plan is billed as a yearly subscription and renews automatically every year.</p>
+                        <p>After continuing to Stripe, you will enter payment details. The subscription can be canceled before the next billing period; access remains active until the paid period ends.</p>
+                    {% endif %}
+                </div>
+
+                <label class="mt-4 flex items-start gap-3 rounded border border-[#d9d9d9] bg-white p-3">
+                    <input id="subscription-terms-checkbox" class="mt-1 h-4 w-4 rounded border-[#d9d9d9] text-[#5ca197] focus:ring-[#5ca197]" type="checkbox" name="subscription_terms_accepted" value="on">
+                    <span class="text-sm leading-6 text-[#353535]/75">
+                        {% if request.LANGUAGE_CODE == 'pl' %}
+                            Akceptuj&#281; warunki subskrypcji i rozumiem, &#380;e plan p&#322;atny b&#281;dzie obs&#322;ugiwany przez Stripe.
+                        {% else %}
+                            I accept the subscription terms and understand that the paid plan will be handled by Stripe.
+                        {% endif %}
+                    </span>
+                </label>
+
+                <p id="subscription-terms-warning" class="mt-3 hidden font-mono text-xs font-semibold text-rose-500">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Zaznacz akceptacj&#281;, aby kontynuowa&#263;.{% else %}Accept the terms to continue.{% endif %}
+                </p>
+
+                <div class="mt-6 flex flex-wrap justify-end gap-2">
+                    <button id="subscription-terms-cancel" type="button" class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
+                        {% if request.LANGUAGE_CODE == 'pl' %}Anuluj{% else %}Cancel{% endif %}
+                    </button>
+                    <button id="subscription-terms-accept" type="button" class="inline-flex min-h-10 items-center justify-center rounded bg-[#284b63] px-4 py-2 font-sans text-sm font-semibold text-white shadow transition hover:bg-[#1e3a4f]">
+                        {% if request.LANGUAGE_CODE == 'pl' %}Akceptuj i przejd&#378; do p&#322;atno&#347;ci{% else %}Accept and continue to payment{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
     </form>
 </section>
+
+<script>
+    (() => {
+        const form = document.querySelector("[data-plan-form]");
+        const modal = document.getElementById("subscription-terms-modal");
+        const checkbox = document.getElementById("subscription-terms-checkbox");
+        const warning = document.getElementById("subscription-terms-warning");
+        const cancelButton = document.getElementById("subscription-terms-cancel");
+        const acceptButton = document.getElementById("subscription-terms-accept");
+        const planChangeModal = document.getElementById("plus-pro-change-modal");
+        const planChangeCancel = document.getElementById("plus-pro-change-cancel");
+        const planChangeAccept = document.getElementById("plus-pro-change-accept");
+        const paidTiers = new Set(["PLUS", "PRO"]);
+        let plusToProConfirmed = false;
+
+        if (!form || !modal || !checkbox || !cancelButton || !acceptButton) return;
+
+        const selectedTier = () => {
+            const selected = form.querySelector("input[name='plan_tier']:checked");
+            return selected ? selected.value : "";
+        };
+
+        const openModal = () => {
+            warning.classList.add("hidden");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        };
+
+        const closeModal = () => {
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        };
+
+        const openPlanChangeModal = () => {
+            if (!planChangeModal) return;
+            planChangeModal.classList.remove("hidden");
+            planChangeModal.classList.add("flex");
+        };
+
+        const closePlanChangeModal = () => {
+            if (!planChangeModal) return;
+            planChangeModal.classList.add("hidden");
+            planChangeModal.classList.remove("flex");
+        };
+
+        form.addEventListener("submit", (event) => {
+            if (form.dataset.currentSubscriptionTier === "PLUS" && selectedTier() === "PRO" && !plusToProConfirmed) {
+                event.preventDefault();
+                openPlanChangeModal();
+                return;
+            }
+            if (paidTiers.has(selectedTier()) && !checkbox.checked) {
+                event.preventDefault();
+                openModal();
+            }
+        });
+
+        cancelButton.addEventListener("click", closeModal);
+        if (planChangeCancel) planChangeCancel.addEventListener("click", closePlanChangeModal);
+        if (planChangeAccept) {
+            planChangeAccept.addEventListener("click", () => {
+                plusToProConfirmed = true;
+                checkbox.checked = true;
+                closePlanChangeModal();
+                form.requestSubmit();
+            });
+        }
+        if (planChangeModal) {
+            planChangeModal.addEventListener("click", (event) => {
+                if (event.target === planChangeModal) closePlanChangeModal();
+            });
+        }
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) closeModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+            if (event.key === "Escape" && planChangeModal && !planChangeModal.classList.contains("hidden")) closePlanChangeModal();
+        });
+
+        acceptButton.addEventListener("click", () => {
+            if (!checkbox.checked) {
+                warning.classList.remove("hidden");
+                return;
+            }
+            closeModal();
+            form.requestSubmit();
+        });
+    })();
+</script>
 {% endblock %}

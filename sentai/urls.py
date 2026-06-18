@@ -15,7 +15,7 @@ from apps.companies.views import (
     SitemapXmlView,
     SiteLLMsTextView,
 )
-from apps.dashboard.views import LandingView
+from apps.dashboard.views import LandingView, StripeWebhookView
 
 admin.site.site_header = "SentAi Administration"
 admin.site.site_title = "SentAi Admin"
@@ -35,6 +35,7 @@ urlpatterns = [
     path("sitemap.xml", SitemapXmlView.as_view(), name="sitemap-xml"),
     # Site-wide llms.txt for LLM crawlers
     path("llms.txt", SiteLLMsTextView.as_view(), name="site-llms-txt"),
+    path("stripe/webhook/", StripeWebhookView.as_view(), name="stripe-webhook"),
     path(
         "api/auth/",
         include(("apps.accounts.api_urls", "accounts_api"), namespace="accounts_api"),

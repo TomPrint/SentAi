@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
+                {% if request.LANGUAGE_CODE == 'pl' %}Billing{% else %}Billing{% endif %}
+            </span>
+            <h1 class="mt-3 font-display text-3xl font-bold tracking-tight text-[#284b63]">
+                {% if request.LANGUAGE_CODE == 'pl' %}Subskrypcje i obroty{% else %}Subscriptions & Turnovers{% endif %}
+            </h1>
+        </div>
+        <a class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'dashboard:home' %}">
+            {% if request.LANGUAGE_CODE == 'pl' %}Wroc{% else %}Back{% endif %}
+        </a>
+    </div>
+
+    <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div class="rounded-lg border border-[#d9d9d9] bg-[#f8fafa] p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">Total</p>
+            <p class="mt-2 font-display text-2xl font-semibold text-[#284b63]">{{ total_turnover_label }}</p>
+        </div>
+        <div class="rounded-lg border border-[#d9d9d9] bg-[#f8fafa] p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">Year</p>
+            <p class="mt-2 font-display text-2xl font-semibold text-[#284b63]">{{ year_turnover_label }}</p>
+        </div>
+        <div class="rounded-lg border border-[#d9d9d9] bg-[#f8fafa] p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">Month</p>
+            <p class="mt-2 font-display text-2xl font-semibold text-[#284b63]">{{ month_turnover_label }}</p>
+        </div>
+        <div class="rounded-lg border border-[#d9d9d9] bg-[#f8fafa] p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">Active</p>
+            <p class="mt-2 font-display text-2xl font-semibold text-[#284b63]">{{ active_subscription_count }}</p>
+        </div>
+        <div class="rounded-lg border border-[#d9d9d9] bg-[#f8fafa] p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">Canceling / Issue</p>
+            <p class="mt-2 font-display text-2xl font-semibold text-[#284b63]">{{ canceling_subscription_count }} / {{ problem_subscription_count }}</p>
+        </div>
+    </div>
+</section>
+
+<section class="rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
+    <h2 class="font-display text-2xl font-semibold tracking-tight text-[#284b63]">Subscriptions</h2>
+    <div class="mt-4 overflow-x-auto">
+        <table class="min-w-full divide-y divide-[#d9d9d9] text-left">
+            <thead>
+                <tr class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
+                    <th class="px-4 py-3">Customer</th>
+                    <th class="px-4 py-3">Plan</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Price</th>
+                    <th class="px-4 py-3">Current public price</th>
+                    <th class="px-4 py-3">Next renewal</th>
+                    <th class="px-4 py-3">Last payment</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-[#d9d9d9] font-mono text-xs">
+                {% for sub in subscriptions %}
+                    <tr>
+                        <td class="px-4 py-3">{{ sub.user.email }}</td>
+                        <td class="px-4 py-3">{{ sub.tier }}</td>
+                        <td class="px-4 py-3">{{ sub.status }}{% if sub.cancel_at_period_end %} / canceling{% endif %}</td>
+                        <td class="px-4 py-3">{% if sub.plan_price %}{{ sub.plan_price.formatted_amount }}{% else %}{{ sub.stripe_price_id }}{% endif %}</td>
+                        <td class="px-4 py-3">{{ sub.current_public_price_label }}</td>
+                        <td class="px-4 py-3">{{ sub.current_period_end|date:"Y-m-d H:i"|default:"-" }}</td>
+                        <td class="px-4 py-3">{{ sub.latest_payment_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td class="px-4 py-6 text-[#353535]/45" colspan="7">No subscriptions yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
+    <h2 class="font-display text-2xl font-semibold tracking-tight text-[#284b63]">Latest payments</h2>
+    <div class="mt-4 overflow-x-auto">
+        <table class="min-w-full divide-y divide-[#d9d9d9] text-left">
+            <thead>
+                <tr class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
+                    <th class="px-4 py-3">Customer</th>
+                    <th class="px-4 py-3">Amount</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Paid</th>
+                    <th class="px-4 py-3">Invoice</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-[#d9d9d9] font-mono text-xs">
+                {% for payment in payments %}
+                    <tr>
+                        <td class="px-4 py-3">{{ payment.user.email }}</td>
+                        <td class="px-4 py-3">{{ payment.formatted_amount }}</td>
+                        <td class="px-4 py-3">{{ payment.status }}</td>
+                        <td class="px-4 py-3">{{ payment.paid_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                        <td class="px-4 py-3">
+                            {% if payment.hosted_invoice_url %}
+                                <a class="text-[#5ca197] hover:underline" href="{{ payment.hosted_invoice_url }}" target="_blank" rel="noopener">Open</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td class="px-4 py-6 text-[#353535]/45" colspan="5">No payments yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

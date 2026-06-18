@@ -4,21 +4,35 @@ import stripe
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import CreateView, FormView, TemplateView, UpdateView
 from django.db import models
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from apps.accounts.models import AccountType, User, UserPlanTier
+from apps.billing.models import BillingPayment, BillingPlanPrice, BillingProfile, BillingSubscription
+from apps.billing.services import (
+    downgrade_to_basic,
+    format_amount,
+    get_active_plan_price,
+    normalize_billing_currency,
+    plan_price_label,
+    record_invoice_payment,
+    sync_subscription_from_stripe,
+    supported_billing_currencies,
+)
 from apps.companies.forms import OrganizationForm
 from apps.companies.models import Organization, VerificationStatus
 from apps.companies.services import public_feed_urls
 from apps.subscriptions.models import Subscription
 
-from .forms import SellerCreateForm, UserPlanUpdateForm, ProspectClientForm, ProspectActivityForm
+from .forms import BillingPlanPriceForm, BillingProfileForm, SellerCreateForm, UserPlanUpdateForm, ProspectClientForm, ProspectActivityForm
 from .forms import ProspectLinkClientForm
 
 
@@ -27,9 +41,19 @@ class LandingView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["plus_price"] = settings.STRIPE_PLUS_PRICE_AMOUNT // 100
-        context["pro_price"] = settings.STRIPE_PRO_PRICE_AMOUNT // 100
-        context["stripe_currency"] = settings.STRIPE_CURRENCY.upper()
+        selected_currency = normalize_billing_currency(self.request.GET.get("currency"))
+        context["selected_billing_currency"] = selected_currency
+        context["billing_currencies"] = supported_billing_currencies()
+        context["plus_price"] = plan_price_label(
+            UserPlanTier.PLUS,
+            settings.STRIPE_PLUS_PRICE_AMOUNT,
+            selected_currency,
+        )
+        context["pro_price"] = plan_price_label(
+            UserPlanTier.PRO,
+            settings.STRIPE_PRO_PRICE_AMOUNT,
+            selected_currency,
+        )
         return context
 
 
@@ -179,34 +203,47 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["user"] = self.request.user
+        if self.request.method == "GET":
+            kwargs["initial"] = kwargs.get("initial", {})
+            billing_profile = getattr(self.request.user, "billing_profile", None)
+            profile_currency = billing_profile.billing_currency() if billing_profile else None
+            kwargs["initial"]["billing_currency"] = normalize_billing_currency(self.request.GET.get("currency") or profile_currency)
         return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["current_organization_count"] = self.request.user.organizations.count()
         context["current_organization_limit"] = self.request.user.organization_limit()
-        context["stripe_checkout_enabled"] = bool(settings.STRIPE_SECRET_KEY)
+        billing_profile = getattr(self.request.user, "billing_profile", None)
+        profile_currency = billing_profile.billing_currency() if billing_profile else None
+        selected_currency = normalize_billing_currency(
+            self.request.POST.get("billing_currency") if self.request.method == "POST" else self.request.GET.get("currency") or profile_currency
+        )
+        plus_price = get_active_plan_price(UserPlanTier.PLUS, selected_currency)
+        pro_price = get_active_plan_price(UserPlanTier.PRO, selected_currency)
+        context["selected_billing_currency"] = selected_currency
+        context["billing_currencies"] = supported_billing_currencies()
+        context["stripe_checkout_enabled"] = bool(settings.STRIPE_SECRET_KEY and (plus_price or pro_price))
         context["stripe_test_mode"] = settings.STRIPE_SECRET_KEY.startswith("sk_test_")
-        context["plus_price_label"] = self._format_price_label(
+        context["plus_price_label"] = plan_price_label(
+            UserPlanTier.PLUS,
             settings.STRIPE_PLUS_PRICE_AMOUNT,
-            settings.STRIPE_CURRENCY,
+            selected_currency,
         )
-        context["pro_price_label"] = self._format_price_label(
+        context["pro_price_label"] = plan_price_label(
+            UserPlanTier.PRO,
             settings.STRIPE_PRO_PRICE_AMOUNT,
-            settings.STRIPE_CURRENCY,
+            selected_currency,
         )
+        context["plus_price_configured"] = bool(plus_price)
+        context["pro_price_configured"] = bool(pro_price)
+        context["billing_subscription"] = getattr(self.request.user, "billing_subscription", None)
+        context["billing_profile"] = getattr(self.request.user, "billing_profile", None)
         return context
 
     @staticmethod
     def _format_price_label(unit_amount: int, currency: str) -> str:
         return f"{unit_amount / 100:.2f} {currency.upper()}"
-
-    def _price_for_tier(self, tier: str) -> int:
-        if tier == UserPlanTier.PLUS:
-            return settings.STRIPE_PLUS_PRICE_AMOUNT
-        if tier == UserPlanTier.PRO:
-            return settings.STRIPE_PRO_PRICE_AMOUNT
-        raise ValueError("Unsupported paid plan tier.")
 
     def _build_checkout_urls(self) -> tuple[str, str]:
         success_url = (
@@ -216,21 +253,78 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
         cancel_url = f"{settings.SITE_BASE_URL}{reverse('dashboard:plan-checkout-cancel')}"
         return success_url, cancel_url
 
-    def _create_checkout_session(self, selected_tier: str):
+    def _create_checkout_session(self, selected_tier: str, plan_price: BillingPlanPrice):
         stripe.api_key = settings.STRIPE_SECRET_KEY
         success_url, cancel_url = self._build_checkout_urls()
+        billing_profile = getattr(self.request.user, "billing_profile", None)
+        billing_subscription = getattr(self.request.user, "billing_subscription", None)
+        customer_id = getattr(billing_subscription, "stripe_customer_id", "") if billing_subscription else ""
+        customer_kwargs = {}
+        if customer_id:
+            customer_kwargs["customer"] = customer_id
+            customer_kwargs["customer_update"] = {"address": "auto", "name": "auto"}
+        else:
+            customer_kwargs["customer_email"] = getattr(billing_profile, "invoice_email", "") or self.request.user.email or None
+
+        billing_metadata = {
+            "billing_profile_id": str(billing_profile.pk),
+            "billing_country": billing_profile.country.upper(),
+            "billing_currency": plan_price.currency,
+            "billing_customer_type": billing_profile.customer_type,
+        }
+
+        return stripe.checkout.Session.create(
+            mode="subscription",
+            payment_method_types=["card"],
+            **customer_kwargs,
+            billing_address_collection="required",
+            tax_id_collection={"enabled": True},
+            client_reference_id=str(self.request.user.pk),
+            line_items=[
+                {
+                    "price": plan_price.stripe_price_id,
+                    "quantity": 1,
+                }
+            ],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            subscription_data={
+                "metadata": {
+                    "user_id": str(self.request.user.pk),
+                    "plan_tier": selected_tier,
+                    "billing_plan_price_id": str(plan_price.pk),
+                    **billing_metadata,
+                }
+            },
+            metadata={
+                "user_id": str(self.request.user.pk),
+                "plan_tier": selected_tier,
+                "billing_plan_price_id": str(plan_price.pk),
+                **billing_metadata,
+            },
+        )
+
+    def _create_plus_to_pro_upgrade_session(self, plan_price: BillingPlanPrice, billing_subscription: BillingSubscription):
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        success_url, cancel_url = self._build_checkout_urls()
+        customer_kwargs = {}
+        if billing_subscription.stripe_customer_id:
+            customer_kwargs["customer"] = billing_subscription.stripe_customer_id
+        else:
+            customer_kwargs["customer_email"] = self.request.user.email or None
 
         return stripe.checkout.Session.create(
             mode="payment",
             payment_method_types=["card"],
-            customer_email=self.request.user.email or None,
+            **customer_kwargs,
+            client_reference_id=str(self.request.user.pk),
             line_items=[
                 {
                     "price_data": {
-                        "currency": settings.STRIPE_CURRENCY,
-                        "unit_amount": self._price_for_tier(selected_tier),
+                        "currency": plan_price.currency,
+                        "unit_amount": plan_price.amount,
                         "product_data": {
-                            "name": f"SentAi {selected_tier.title()} plan",
+                            "name": "PRO yearly subscription plan change",
                         },
                     },
                     "quantity": 1,
@@ -240,12 +334,16 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
             cancel_url=cancel_url,
             metadata={
                 "user_id": str(self.request.user.pk),
-                "plan_tier": selected_tier,
+                "plan_tier": UserPlanTier.PRO,
+                "upgrade_type": "plus_to_pro",
+                "billing_plan_price_id": str(plan_price.pk),
+                "stripe_subscription_id": billing_subscription.stripe_subscription_id,
             },
         )
 
     def form_valid(self, form):
         selected_tier = form.cleaned_data["plan_tier"]
+        selected_currency = form.cleaned_data["billing_currency"]
         user = self.request.user
         has_selected_plan = user.has_selected_plan()
 
@@ -257,12 +355,33 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
             return super().form_valid(form)
 
         if selected_tier == UserPlanTier.BASIC:
-            user.plan_tier = selected_tier
-            user.paid_plan_started_at = None
-            if user.plan_selected_at is None:
-                user.plan_selected_at = timezone.now()
-            user.save(update_fields=["plan_tier", "paid_plan_started_at", "plan_selected_at"])
-            Subscription.objects.filter(organization__owner=self.request.user).update(tier=selected_tier)
+            billing_subscription = getattr(user, "billing_subscription", None)
+            if (
+                billing_subscription
+                and billing_subscription.stripe_subscription_id
+                and billing_subscription.status in {"active", "trialing", "past_due"}
+            ):
+                if not settings.STRIPE_SECRET_KEY:
+                    messages.error(self.request, "Stripe is not configured.")
+                    return redirect("dashboard:plan-update")
+                stripe.api_key = settings.STRIPE_SECRET_KEY
+                try:
+                    stripe.Subscription.modify(billing_subscription.stripe_subscription_id, cancel_at_period_end=True)
+                except Exception:
+                    if self.request.LANGUAGE_CODE == "pl":
+                        messages.error(self.request, "Nie udalo sie anulowac odnowienia subskrypcji.")
+                    else:
+                        messages.error(self.request, "Could not cancel subscription renewal.")
+                    return redirect("dashboard:plan-update")
+                billing_subscription.cancel_at_period_end = True
+                billing_subscription.save(update_fields=["cancel_at_period_end", "updated_at"])
+                if self.request.LANGUAGE_CODE == "pl":
+                    messages.success(self.request, "Odnowienie zostalo anulowane. Obecny plan zostaje aktywny do konca oplaconego okresu.")
+                else:
+                    messages.success(self.request, "Renewal has been canceled. Your current plan remains active until the end of the paid period.")
+                return redirect("dashboard:billing-portal")
+
+            downgrade_to_basic(user)
             if self.request.LANGUAGE_CODE == "pl":
                 messages.success(self.request, "Plan został zaktualizowany.")
             else:
@@ -270,6 +389,55 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
             return super().form_valid(form)
 
         if selected_tier in self.paid_tiers:
+            existing_subscription = getattr(user, "billing_subscription", None)
+            if (
+                existing_subscription
+                and existing_subscription.stripe_subscription_id
+                and existing_subscription.status in {"active", "trialing", "past_due"}
+            ):
+                if user.plan_tier == UserPlanTier.PRO and selected_tier == UserPlanTier.PLUS:
+                    if self.request.LANGUAGE_CODE == "pl":
+                        messages.info(self.request, "Zmiana z PRO na PLUS nie jest dostepna w trakcie oplaconego okresu. Anuluj odnowienie i rozpocznij PLUS po zakonczeniu obecnego roku.")
+                    else:
+                        messages.info(self.request, "Downgrading from PRO to PLUS is not available during a paid period. Cancel renewal and start PLUS after the current year ends.")
+                    return redirect("dashboard:billing-portal")
+
+                if user.plan_tier == UserPlanTier.PLUS and selected_tier == UserPlanTier.PRO:
+                    billing_profile = getattr(user, "billing_profile", None)
+                    selected_currency = (
+                        existing_subscription.plan_price.currency
+                        if existing_subscription.plan_price
+                        else billing_profile.billing_currency() if billing_profile else form.cleaned_data["billing_currency"]
+                    )
+                    plan_price = get_active_plan_price(UserPlanTier.PRO, selected_currency)
+                    if not plan_price:
+                        messages.error(self.request, "No active PRO Stripe price is configured for your subscription currency.")
+                        return redirect("dashboard:plan-update")
+                    try:
+                        checkout_session = self._create_plus_to_pro_upgrade_session(plan_price, existing_subscription)
+                    except Exception:
+                        messages.error(self.request, "Could not create Stripe upgrade payment session.")
+                        return redirect("dashboard:plan-update")
+                    checkout_url = getattr(checkout_session, "url", "")
+                    if not checkout_url:
+                        messages.error(self.request, "Stripe returned an invalid response.")
+                        return redirect("dashboard:plan-update")
+                    return redirect(checkout_url, permanent=False)
+
+                if self.request.LANGUAGE_CODE == "pl":
+                    messages.info(self.request, "Masz juz aktywna subskrypcje. Zmiany planu obsluzymy z poziomu zarzadzania subskrypcja.")
+                else:
+                    messages.info(self.request, "You already have an active subscription. Manage plan changes from the subscription page.")
+                return redirect("dashboard:billing-portal")
+
+            billing_profile = getattr(user, "billing_profile", None)
+            if not billing_profile or not billing_profile.is_complete():
+                if self.request.LANGUAGE_CODE == "pl":
+                    messages.warning(self.request, "Uzupelnij dane do faktury przed platnoscia.")
+                else:
+                    messages.warning(self.request, "Complete billing details before payment.")
+                return redirect("dashboard:billing-profile")
+
             if not settings.STRIPE_SECRET_KEY:
                 if self.request.LANGUAGE_CODE == "pl":
                     messages.error(
@@ -280,11 +448,20 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
                     messages.error(
                         self.request,
                         "Stripe is not configured. Set STRIPE_SECRET_KEY in environment variables.",
-                    )
+                )
+                return redirect("dashboard:plan-update")
+
+            selected_currency = billing_profile.billing_currency()
+            plan_price = get_active_plan_price(selected_tier, selected_currency)
+            if not plan_price:
+                if self.request.LANGUAGE_CODE == "pl":
+                    messages.error(self.request, "Brak aktywnej ceny Stripe dla wybranego planu.")
+                else:
+                    messages.error(self.request, "No active Stripe price is configured for the selected plan.")
                 return redirect("dashboard:plan-update")
 
             try:
-                checkout_session = self._create_checkout_session(selected_tier)
+                checkout_session = self._create_checkout_session(selected_tier, plan_price)
             except Exception:
                 if self.request.LANGUAGE_CODE == "pl":
                     messages.error(self.request, "Nie udało się utworzyć sesji płatności Stripe.")
@@ -342,7 +519,10 @@ class PlanCheckoutSuccessView(LoginRequiredMixin, View):
         metadata = getattr(checkout_session, "metadata", {}) or {}
         session_user_id = metadata.get("user_id")
         selected_tier = metadata.get("plan_tier")
+        upgrade_type = metadata.get("upgrade_type", "")
         payment_status = getattr(checkout_session, "payment_status", "")
+        stripe_subscription_id = getattr(checkout_session, "subscription", "") or ""
+        stripe_customer_id = getattr(checkout_session, "customer", "") or ""
 
         if session_user_id != str(request.user.pk):
             if request.LANGUAGE_CODE == "pl":
@@ -351,6 +531,73 @@ class PlanCheckoutSuccessView(LoginRequiredMixin, View):
                 messages.error(request, "This payment session does not belong to your account.")
             return redirect("dashboard:plan-update")
 
+        if upgrade_type == "plus_to_pro":
+            if selected_tier != UserPlanTier.PRO:
+                messages.error(request, "Invalid upgrade returned from Stripe payment.")
+                return redirect("dashboard:plan-update")
+            if payment_status != "paid":
+                messages.warning(request, "Upgrade payment has not been confirmed yet.")
+                return redirect("dashboard:plan-update")
+
+            billing_subscription = getattr(request.user, "billing_subscription", None)
+            existing_subscription_id = metadata.get("stripe_subscription_id") or getattr(
+                billing_subscription,
+                "stripe_subscription_id",
+                "",
+            )
+            plan_price = BillingPlanPrice.objects.filter(pk=metadata.get("billing_plan_price_id")).first()
+            if not existing_subscription_id or not plan_price:
+                messages.error(request, "Could not find the subscription or PRO price for this upgrade.")
+                return redirect("dashboard:plan-update")
+
+            try:
+                stripe_subscription = stripe.Subscription.retrieve(existing_subscription_id)
+                items = getattr(getattr(stripe_subscription, "items", None), "data", None)
+                if items is None and isinstance(stripe_subscription, dict):
+                    items = stripe_subscription.get("items", {}).get("data", [])
+                first_item = items[0] if items else None
+                item_id = getattr(first_item, "id", None) if first_item is not None else None
+                if item_id is None and isinstance(first_item, dict):
+                    item_id = first_item.get("id")
+                if not item_id:
+                    raise ValueError("Missing Stripe subscription item id")
+
+                updated_subscription = stripe.Subscription.modify(
+                    existing_subscription_id,
+                    items=[{"id": item_id, "price": plan_price.stripe_price_id}],
+                    billing_cycle_anchor="now",
+                    proration_behavior="none",
+                    cancel_at_period_end=False,
+                    metadata={
+                        "user_id": str(request.user.pk),
+                        "plan_tier": UserPlanTier.PRO,
+                        "billing_plan_price_id": str(plan_price.pk),
+                    },
+                )
+                billing_subscription = sync_subscription_from_stripe(
+                    updated_subscription,
+                    fallback_user=request.user,
+                    fallback_tier=UserPlanTier.PRO,
+                )
+            except Exception:
+                if request.LANGUAGE_CODE == "pl":
+                    messages.error(request, "Platnosc upgrade zostala przyjeta, ale nie udalo sie zaktualizowac subskrypcji Stripe. Skontaktuj sie z obsluga.")
+                else:
+                    messages.error(request, "Upgrade payment was accepted, but the Stripe subscription could not be updated. Please contact support.")
+                return redirect("dashboard:billing-portal")
+
+            if not billing_subscription:
+                request.user.plan_tier = UserPlanTier.PRO
+                request.user.plan_selected_at = timezone.now()
+                request.user.paid_plan_started_at = timezone.now()
+                request.user.save(update_fields=["plan_tier", "plan_selected_at", "paid_plan_started_at"])
+
+            if request.LANGUAGE_CODE == "pl":
+                messages.success(request, "Upgrade do PRO zakonczony. Nowy okres subskrypcji zaczyna sie od dzisiaj.")
+            else:
+                messages.success(request, "Upgrade to PRO completed. The new subscription period starts today.")
+            return redirect("dashboard:home")
+
         if selected_tier not in self.paid_tiers:
             if request.LANGUAGE_CODE == "pl":
                 messages.error(request, "Nieprawidłowy plan z płatności Stripe.")
@@ -358,14 +605,38 @@ class PlanCheckoutSuccessView(LoginRequiredMixin, View):
                 messages.error(request, "Invalid plan returned from Stripe payment.")
             return redirect("dashboard:plan-update")
 
-        if payment_status != "paid":
+        if payment_status != "paid" and not stripe_subscription_id:
             if request.LANGUAGE_CODE == "pl":
                 messages.warning(request, "Płatność nie została jeszcze potwierdzona.")
             else:
                 messages.warning(request, "Payment has not been confirmed yet.")
             return redirect("dashboard:plan-update")
 
-        if request.user.plan_tier != selected_tier or request.user.plan_selected_at is None:
+        billing_subscription = None
+        if stripe_subscription_id:
+            try:
+                stripe_subscription = stripe.Subscription.retrieve(stripe_subscription_id)
+                billing_subscription = sync_subscription_from_stripe(
+                    stripe_subscription,
+                    fallback_user=request.user,
+                    fallback_tier=selected_tier,
+                )
+            except Exception:
+                billing_subscription = None
+
+        if not billing_subscription and (request.user.plan_tier != selected_tier or request.user.plan_selected_at is None):
+            plan_price = get_active_plan_price(selected_tier)
+            BillingSubscription.objects.update_or_create(
+                user=request.user,
+                defaults={
+                    "tier": selected_tier,
+                    "plan_price": plan_price,
+                    "stripe_customer_id": stripe_customer_id,
+                    "stripe_subscription_id": stripe_subscription_id,
+                    "stripe_price_id": plan_price.stripe_price_id if plan_price else "",
+                    "status": "active",
+                },
+            )
             request.user.plan_tier = selected_tier
             if request.user.paid_plan_started_at is None:
                 request.user.paid_plan_started_at = timezone.now()
@@ -390,6 +661,181 @@ class PlanCheckoutCancelView(LoginRequiredMixin, View):
         return redirect("dashboard:plan-update")
 
 
+class BillingPortalView(LoginRequiredMixin, TemplateView):
+    template_name = "dashboard/billing_subscription.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        billing_subscription = getattr(self.request.user, "billing_subscription", None)
+        context["stripe_sync_error"] = False
+        if (
+            billing_subscription
+            and billing_subscription.stripe_subscription_id
+            and settings.STRIPE_SECRET_KEY
+        ):
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            try:
+                stripe_subscription = stripe.Subscription.retrieve(billing_subscription.stripe_subscription_id)
+                billing_subscription = sync_subscription_from_stripe(
+                    stripe_subscription,
+                    fallback_user=self.request.user,
+                    fallback_tier=billing_subscription.tier,
+                ) or billing_subscription
+            except Exception:
+                context["stripe_sync_error"] = True
+        context["billing_subscription"] = billing_subscription
+        context["current_price"] = billing_subscription.plan_price if billing_subscription else None
+        return context
+
+
+class BillingSubscriptionCancelView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        billing_subscription = getattr(request.user, "billing_subscription", None)
+        subscription_id = getattr(billing_subscription, "stripe_subscription_id", "") if billing_subscription else ""
+        if not settings.STRIPE_SECRET_KEY or not subscription_id:
+            if request.LANGUAGE_CODE == "pl":
+                messages.error(request, "Nie znaleziono aktywnej subskrypcji Stripe dla tego konta.")
+            else:
+                messages.error(request, "No active Stripe subscription was found for this account.")
+            return redirect("dashboard:plan-update")
+
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        try:
+            stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
+        except Exception:
+            if request.LANGUAGE_CODE == "pl":
+                messages.error(request, "Nie udalo sie anulowac odnowienia subskrypcji.")
+            else:
+                messages.error(request, "Could not cancel subscription renewal.")
+            return redirect("dashboard:billing-portal")
+
+        billing_subscription.cancel_at_period_end = True
+        billing_subscription.save(update_fields=["cancel_at_period_end", "updated_at"])
+        if request.LANGUAGE_CODE == "pl":
+            messages.success(request, "Odnowienie subskrypcji zostalo anulowane. Dostep zostaje aktywny do konca oplaconego okresu.")
+        else:
+            messages.success(request, "Subscription renewal has been canceled. Access stays active until the end of the paid period.")
+        return redirect("dashboard:billing-portal")
+
+
+class BillingSubscriptionReactivateView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        billing_subscription = getattr(request.user, "billing_subscription", None)
+        subscription_id = getattr(billing_subscription, "stripe_subscription_id", "") if billing_subscription else ""
+        if not settings.STRIPE_SECRET_KEY or not subscription_id:
+            if request.LANGUAGE_CODE == "pl":
+                messages.error(request, "Nie znaleziono aktywnej subskrypcji Stripe dla tego konta.")
+            else:
+                messages.error(request, "No active Stripe subscription was found for this account.")
+            return redirect("dashboard:plan-update")
+
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        try:
+            stripe.Subscription.modify(subscription_id, cancel_at_period_end=False)
+        except Exception:
+            if request.LANGUAGE_CODE == "pl":
+                messages.error(request, "Nie udalo sie wznowic odnowienia subskrypcji.")
+            else:
+                messages.error(request, "Could not reactivate subscription renewal.")
+            return redirect("dashboard:billing-portal")
+
+        billing_subscription.cancel_at_period_end = False
+        billing_subscription.save(update_fields=["cancel_at_period_end", "updated_at"])
+        if request.LANGUAGE_CODE == "pl":
+            messages.success(request, "Odnowienie subskrypcji zostalo wlaczone ponownie.")
+        else:
+            messages.success(request, "Subscription renewal has been reactivated.")
+        return redirect("dashboard:billing-portal")
+
+
+class BillingProfileView(LoginRequiredMixin, UpdateView):
+    model = BillingProfile
+    form_class = BillingProfileForm
+    template_name = "dashboard/billing_profile_form.html"
+    success_url = reverse_lazy("dashboard:plan-update")
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_superuser:
+            return redirect("dashboard:home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        profile, _ = BillingProfile.objects.get_or_create(
+            user=self.request.user,
+            defaults={
+                "invoice_email": self.request.user.email,
+                "street": "",
+                "postal_code": "",
+                "city": "",
+                "country": "PL",
+            },
+        )
+        return profile
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        if self.request.LANGUAGE_CODE == "pl":
+            messages.success(self.request, "Dane do faktury zostaly zapisane.")
+        else:
+            messages.success(self.request, "Billing details have been saved.")
+        return super().form_valid(form)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class StripeWebhookView(View):
+    def post(self, request, *args, **kwargs):
+        payload = request.body
+        signature = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+
+        if settings.STRIPE_WEBHOOK_SECRET:
+            try:
+                event = stripe.Webhook.construct_event(payload, signature, settings.STRIPE_WEBHOOK_SECRET)
+            except Exception:
+                return HttpResponse(status=400)
+        else:
+            import json
+
+            try:
+                event = json.loads(payload.decode("utf-8"))
+            except Exception:
+                return HttpResponse(status=400)
+
+        event_type = event.get("type") if isinstance(event, dict) else getattr(event, "type", "")
+        data = event.get("data", {}) if isinstance(event, dict) else getattr(event, "data", {})
+        stripe_object = data.get("object") if isinstance(data, dict) else getattr(data, "object", None)
+
+        if event_type == "checkout.session.completed":
+            metadata = stripe_object.get("metadata", {}) if isinstance(stripe_object, dict) else getattr(stripe_object, "metadata", {})
+            subscription_id = stripe_object.get("subscription", "") if isinstance(stripe_object, dict) else getattr(stripe_object, "subscription", "")
+            if subscription_id:
+                try:
+                    stripe.api_key = settings.STRIPE_SECRET_KEY
+                    subscription = stripe.Subscription.retrieve(subscription_id)
+                    sync_subscription_from_stripe(subscription)
+                except Exception:
+                    pass
+            elif metadata:
+                user = User.objects.filter(pk=metadata.get("user_id")).first()
+                tier = metadata.get("plan_tier")
+                if user and tier in {UserPlanTier.PLUS, UserPlanTier.PRO}:
+                    sync_subscription_from_stripe(stripe_object, fallback_user=user, fallback_tier=tier)
+        elif event_type in {
+            "customer.subscription.created",
+            "customer.subscription.updated",
+            "customer.subscription.deleted",
+        }:
+            sync_subscription_from_stripe(stripe_object)
+        elif event_type in {"invoice.paid", "invoice.payment_failed"}:
+            record_invoice_payment(stripe_object)
+
+        return HttpResponse(status=200)
+
+
 class AdminRequiredMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -397,6 +843,107 @@ class AdminRequiredMixin(LoginRequiredMixin):
         if not request.user.is_superuser:
             return redirect("dashboard:home")
         return super().dispatch(request, *args, **kwargs)
+
+
+class BillingPriceManagementView(AdminRequiredMixin, FormView):
+    form_class = BillingPlanPriceForm
+    template_name = "dashboard/billing_price_management.html"
+    success_url = reverse_lazy("dashboard:billing-price-management")
+
+    def form_valid(self, form):
+        price = form.save(commit=False)
+        price.created_by = self.request.user
+        price.save()
+        if self.request.LANGUAGE_CODE == "pl":
+            messages.success(self.request, "Cena planu zostala dodana.")
+        else:
+            messages.success(self.request, "Plan price has been added.")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["prices"] = BillingPlanPrice.objects.select_related("created_by")
+        return context
+
+
+class BillingPriceArchiveView(AdminRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        price = get_object_or_404(BillingPlanPrice, pk=pk)
+        price.active_for_new_customers = False
+        price.save(update_fields=["active_for_new_customers", "updated_at"])
+        if request.LANGUAGE_CODE == "pl":
+            messages.success(request, "Cena zostala zarchiwizowana dla nowych klientow.")
+        else:
+            messages.success(request, "Price has been archived for new customers.")
+        return redirect("dashboard:billing-price-management")
+
+
+class BillingPriceActivateView(AdminRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        price = get_object_or_404(BillingPlanPrice, pk=pk)
+        active_exists = BillingPlanPrice.objects.filter(
+            tier=price.tier,
+            currency=price.currency,
+            active_for_new_customers=True,
+        ).exclude(pk=price.pk).exists()
+        if active_exists:
+            if request.LANGUAGE_CODE == "pl":
+                messages.error(request, "Ten plan ma juz aktywna cene dla tej waluty. Najpierw ja zarchiwizuj.")
+            else:
+                messages.error(request, "This plan already has an active price for this currency. Archive it first.")
+            return redirect("dashboard:billing-price-management")
+
+        price.active_for_new_customers = True
+        price.save(update_fields=["active_for_new_customers", "updated_at"])
+        if request.LANGUAGE_CODE == "pl":
+            messages.success(request, "Cena jest aktywna dla nowych klientow.")
+        else:
+            messages.success(request, "Price is active for new customers.")
+        return redirect("dashboard:billing-price-management")
+
+
+class BillingPriceUpdateView(AdminRequiredMixin, UpdateView):
+    model = BillingPlanPrice
+    form_class = BillingPlanPriceForm
+    template_name = "dashboard/billing_price_form.html"
+    success_url = reverse_lazy("dashboard:billing-price-management")
+
+    def form_valid(self, form):
+        if self.request.LANGUAGE_CODE == "pl":
+            messages.success(self.request, "Cena planu zostala zaktualizowana.")
+        else:
+            messages.success(self.request, "Plan price has been updated.")
+        return super().form_valid(form)
+
+
+class BillingOverviewView(AdminRequiredMixin, TemplateView):
+    template_name = "dashboard/billing_overview.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        payments = BillingPayment.objects.select_related("user", "subscription")
+        subscriptions = BillingSubscription.objects.select_related("user", "plan_price")
+        now = timezone.now()
+
+        subscription_rows = []
+        for subscription in subscriptions:
+            currency = subscription.plan_price.currency if subscription.plan_price else settings.STRIPE_CURRENCY
+            current_price = get_active_plan_price(subscription.tier, currency)
+            subscription.current_public_price_label = current_price.formatted_amount() if current_price else "-"
+            subscription_rows.append(subscription)
+
+        context["subscriptions"] = subscription_rows
+        context["payments"] = payments[:25]
+        total_turnover = payments.filter(status="paid").aggregate(total=models.Sum("amount_paid"))["total"] or 0
+        year_turnover = payments.filter(status="paid", paid_at__year=now.year).aggregate(total=models.Sum("amount_paid"))["total"] or 0
+        month_turnover = payments.filter(status="paid", paid_at__year=now.year, paid_at__month=now.month).aggregate(total=models.Sum("amount_paid"))["total"] or 0
+        context["total_turnover_label"] = format_amount(total_turnover, settings.STRIPE_CURRENCY)
+        context["year_turnover_label"] = format_amount(year_turnover, settings.STRIPE_CURRENCY)
+        context["month_turnover_label"] = format_amount(month_turnover, settings.STRIPE_CURRENCY)
+        context["active_subscription_count"] = subscriptions.filter(status__in=["active", "trialing"]).count()
+        context["canceling_subscription_count"] = subscriptions.filter(cancel_at_period_end=True).count()
+        context["problem_subscription_count"] = subscriptions.filter(status__in=["past_due", "unpaid"]).count()
+        return context
 
 
 class ClientListView(AdminRequiredMixin, TemplateView):
