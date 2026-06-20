@@ -592,6 +592,51 @@ class DashboardPlanLimitTests(TestCase):
         self.assertEqual(self.user.plan_tier, UserPlanTier.PLUS)
         self.assertEqual(self.user.billing_subscription.stripe_subscription_id, "sub_test_123")
 
+    @override_settings(STRIPE_WEBHOOK_SECRET="")
+    def test_invoice_paid_webhook_records_renewal_payment(self):
+        subscription = BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+        payload = {
+            "type": "invoice.paid",
+            "data": {
+                "object": {
+                    "id": "in_renewal_123",
+                    "subscription": "sub_test_123",
+                    "customer": "cus_test_123",
+                    "payment_intent": "pi_renewal_123",
+                    "amount_paid": 20000,
+                    "currency": "pln",
+                    "status": "paid",
+                    "hosted_invoice_url": "https://invoice.stripe.test/in_renewal_123",
+                    "invoice_pdf": "https://invoice.stripe.test/in_renewal_123.pdf",
+                    "status_transitions": {
+                        "paid_at": 1798761600,
+                    },
+                }
+            },
+        }
+
+        response = self.client.post(
+            reverse("stripe-webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payment = self.user.billing_payments.get(stripe_invoice_id="in_renewal_123")
+        self.assertEqual(payment.subscription, subscription)
+        self.assertEqual(payment.amount_paid, 20000)
+        self.assertEqual(payment.currency, "pln")
+        self.assertEqual(payment.status, "paid")
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.latest_invoice_id, "in_renewal_123")
+        self.assertIsNotNone(subscription.latest_payment_at)
+
     def test_user_can_downgrade_to_basic_without_payment(self):
         self.user.plan_tier = UserPlanTier.PLUS
         self.user.save(update_fields=["plan_tier"])
@@ -608,7 +653,7 @@ class DashboardPlanLimitTests(TestCase):
 
     @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
     @patch("apps.dashboard.views.stripe.Subscription.modify")
-    def test_paid_subscriber_selecting_basic_cancels_renewal_without_losing_access(self, mock_subscription_modify):
+    def test_paid_subscriber_selecting_basic_is_blocked_without_losing_access(self, mock_subscription_modify):
         self.user.plan_tier = UserPlanTier.PLUS
         self.user.plan_selected_at = timezone.now()
         self.user.paid_plan_started_at = timezone.now()
@@ -628,11 +673,11 @@ class DashboardPlanLimitTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("dashboard:billing-portal"))
-        mock_subscription_modify.assert_called_once_with("sub_test_123", cancel_at_period_end=True)
+        mock_subscription_modify.assert_not_called()
         self.user.refresh_from_db()
         subscription.refresh_from_db()
         self.assertEqual(self.user.plan_tier, UserPlanTier.PLUS)
-        self.assertTrue(subscription.cancel_at_period_end)
+        self.assertFalse(subscription.cancel_at_period_end)
 
     @override_settings(STRIPE_SECRET_KEY="sk_test_dummy", SITE_BASE_URL="http://testserver")
     @patch("apps.dashboard.views.stripe.checkout.Session.create")

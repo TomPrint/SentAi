@@ -361,24 +361,10 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
                 and billing_subscription.stripe_subscription_id
                 and billing_subscription.status in {"active", "trialing", "past_due"}
             ):
-                if not settings.STRIPE_SECRET_KEY:
-                    messages.error(self.request, "Stripe is not configured.")
-                    return redirect("dashboard:plan-update")
-                stripe.api_key = settings.STRIPE_SECRET_KEY
-                try:
-                    stripe.Subscription.modify(billing_subscription.stripe_subscription_id, cancel_at_period_end=True)
-                except Exception:
-                    if self.request.LANGUAGE_CODE == "pl":
-                        messages.error(self.request, "Nie udalo sie anulowac odnowienia subskrypcji.")
-                    else:
-                        messages.error(self.request, "Could not cancel subscription renewal.")
-                    return redirect("dashboard:plan-update")
-                billing_subscription.cancel_at_period_end = True
-                billing_subscription.save(update_fields=["cancel_at_period_end", "updated_at"])
                 if self.request.LANGUAGE_CODE == "pl":
-                    messages.success(self.request, "Odnowienie zostalo anulowane. Obecny plan zostaje aktywny do konca oplaconego okresu.")
+                    messages.info(self.request, "Zmiana na BASIC jest zablokowana w trakcie oplaconego okresu. Anuluj odnowienie i rozpocznij BASIC po zakonczeniu obecnego roku.")
                 else:
-                    messages.success(self.request, "Renewal has been canceled. Your current plan remains active until the end of the paid period.")
+                    messages.info(self.request, "Downgrading to BASIC is blocked during the paid period. Cancel renewal and start BASIC after the current year ends.")
                 return redirect("dashboard:billing-portal")
 
             downgrade_to_basic(user)

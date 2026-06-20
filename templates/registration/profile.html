@@ -95,6 +95,107 @@
             </div>
 
         </div>
+
+        <div class="border-t border-[#d9d9d9] pt-5">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/35">
+                        {% if request.LANGUAGE_CODE == 'pl' %}Strefa konta{% else %}Account zone{% endif %}
+                    </p>
+                    <p class="mt-1 text-xs leading-5 text-[#353535]/45">
+                        {% if request.LANGUAGE_CODE == 'pl' %}
+                            Zamkniecie konta usuwa dane i anuluje aktywna subskrypcje.
+                        {% else %}
+                            Closing the account deletes your data and cancels any active subscription.
+                        {% endif %}
+                    </p>
+                </div>
+                <button id="open-close-account-modal" type="button" class="self-start rounded border border-rose-200 bg-white px-3 py-1.5 font-mono text-[11px] font-medium text-rose-400 transition hover:border-rose-500 hover:text-rose-500 sm:self-auto">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Zamknij konto{% else %}Close account{% endif %}
+                </button>
+            </div>
+        </div>
     </div>
 </section>
+
+<div id="close-account-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-[#353535]/60 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="close-account-title">
+    <div class="w-full max-w-lg rounded-xl border border-[#d9d9d9] bg-white p-6 shadow-xl">
+        <p class="font-mono text-[10px] uppercase tracking-widest text-rose-500">
+            {% if request.LANGUAGE_CODE == 'pl' %}Nieodwracalne{% else %}Irreversible{% endif %}
+        </p>
+        <h2 id="close-account-title" class="mt-2 font-display text-2xl font-semibold tracking-tight text-[#284b63]">
+            {% if request.LANGUAGE_CODE == 'pl' %}Zamknac konto?{% else %}Close account?{% endif %}
+        </h2>
+        <div class="mt-4 space-y-3 rounded-lg border border-[#d9d9d9] bg-[#f8fafa] p-4 text-sm leading-6 text-[#353535]/70">
+            {% if request.LANGUAGE_CODE == 'pl' %}
+                <p>Po potwierdzeniu konto zostanie usuniete razem z danymi firm, profilami publicznymi i ustawieniami.</p>
+                <p>Jesli masz aktywna subskrypcje Stripe, zostanie anulowana przed usunieciem konta.</p>
+            {% else %}
+                <p>After confirmation, your account will be deleted together with company data, public profiles, and settings.</p>
+                <p>If you have an active Stripe subscription, it will be canceled before the account is deleted.</p>
+            {% endif %}
+        </div>
+        <div class="mt-5 rounded border border-[#d9d9d9] bg-[#f8fafa] px-4 py-3">
+            <div class="flex items-center justify-between gap-3">
+                <span class="font-mono text-xs text-[#353535]/55">{% if request.LANGUAGE_CODE == 'pl' %}Przycisk aktywny za{% else %}Button unlocks in{% endif %}</span>
+                <span class="font-mono text-lg font-semibold text-[#284b63]"><span id="close-account-countdown">5</span>s</span>
+            </div>
+        </div>
+        <div class="mt-6 flex flex-wrap justify-end gap-2">
+            <button id="close-account-cancel" type="button" class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]">
+                {% if request.LANGUAGE_CODE == 'pl' %}Wroc{% else %}Back{% endif %}
+            </button>
+            <form method="post" action="{% url 'accounts:close-account' %}">
+                {% csrf_token %}
+                <button id="close-account-confirm" disabled class="inline-flex min-h-10 items-center justify-center rounded border border-rose-200 bg-rose-50 px-4 py-2 font-mono text-xs font-medium text-rose-300 transition enabled:border-rose-500 enabled:bg-rose-500 enabled:text-white enabled:hover:bg-rose-600 disabled:cursor-not-allowed" type="submit">
+                    {% if request.LANGUAGE_CODE == 'pl' %}Potwierdz zamkniecie konta{% else %}Confirm account closure{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (() => {
+        const openButton = document.getElementById("open-close-account-modal");
+        const modal = document.getElementById("close-account-modal");
+        const cancelButton = document.getElementById("close-account-cancel");
+        const confirmButton = document.getElementById("close-account-confirm");
+        const countdown = document.getElementById("close-account-countdown");
+        let timer = null;
+
+        if (!openButton || !modal || !cancelButton || !confirmButton || !countdown) return;
+
+        const closeModal = () => {
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+            clearInterval(timer);
+        };
+
+        openButton.addEventListener("click", () => {
+            let remaining = 5;
+            countdown.textContent = remaining;
+            confirmButton.disabled = true;
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+            clearInterval(timer);
+            timer = setInterval(() => {
+                remaining -= 1;
+                countdown.textContent = Math.max(remaining, 0);
+                if (remaining <= 0) {
+                    clearInterval(timer);
+                    confirmButton.disabled = false;
+                }
+            }, 1000);
+        });
+
+        cancelButton.addEventListener("click", closeModal);
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) closeModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+        });
+    })();
+</script>
 {% endblock %}
