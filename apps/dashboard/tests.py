@@ -1,21 +1,159 @@
 import json
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from django.urls import reverse
 from django.utils.translation import override
 
 from apps.accounts.models import AccountType, UserPlanTier
-from apps.billing.models import BillingPlanPrice, BillingProfile, BillingSubscription
+from apps.billing.models import BillingInvoice, BillingPayment, BillingPlanPrice, BillingProfile, BillingSubscription
 from apps.companies.models import Organization, VerificationStatus
 from apps.sales.models import ProspectActivity, ProspectClient, SellerSettlement
 
 
 User = get_user_model()
+
+
+class BillingInvoiceTrackingTests(TestCase):
+    def setUp(self):
+        self.media_directory = TemporaryDirectory()
+        self.media_override = override_settings(MEDIA_ROOT=self.media_directory.name)
+        self.media_override.enable()
+        self.admin = User.objects.create_superuser(
+            username="invoice-admin",
+            email="invoice-admin@example.com",
+            password="strong-pass-123",
+        )
+        self.customer = User.objects.create_user(
+            username="invoice-customer",
+            email="invoice-customer@example.com",
+            password="strong-pass-123",
+        )
+        self.payment = BillingPayment.objects.create(
+            user=self.customer,
+            stripe_invoice_id="in_invoice_tracking",
+            amount_paid=4900,
+            currency="pln",
+            status="paid",
+        )
+        self.client.force_login(self.admin)
+
+    def tearDown(self):
+        self.media_override.disable()
+        self.media_directory.cleanup()
+        super().tearDown()
+
+    def test_admin_can_save_invoice_tracking_information(self):
+        response = self.client.post(
+            reverse("dashboard:billing-payment-invoice-update", args=[self.payment.pk]),
+            {
+                "invoice_issued": "on",
+                "invoice_issued_at": "2026-06-27",
+                "invoice_sent": "on",
+                "invoice_sent_at": "2026-06-28",
+                "invoice_number": "FV/2026/001",
+                "invoice_document": SimpleUploadedFile(
+                    "FV-2026-001.pdf",
+                    b"%PDF-1.4 test invoice",
+                    content_type="application/pdf",
+                ),
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard:billing-overview"))
+        self.payment.refresh_from_db()
+        self.assertTrue(self.payment.invoice_issued)
+        self.assertEqual(self.payment.invoice_issued_at.isoformat(), "2026-06-27")
+        self.assertTrue(self.payment.invoice_sent)
+        self.assertEqual(self.payment.invoice_sent_at.isoformat(), "2026-06-28")
+        self.assertEqual(self.payment.invoice_number, "FV/2026/001")
+
+    def test_sent_invoice_requires_date_and_number(self):
+        response = self.client.post(
+            reverse("dashboard:billing-payment-invoice-update", args=[self.payment.pk]),
+            {"invoice_sent": "on"},
+        )
+
+        self.assertRedirects(response, reverse("dashboard:billing-overview"))
+        self.payment.refresh_from_db()
+        self.assertFalse(self.payment.invoice_sent)
+
+    def test_customer_can_list_and_download_own_issued_invoice(self):
+        invoice = BillingInvoice.objects.create(
+            user=self.customer,
+            issued_at="2026-06-27",
+            invoice_number="FV/2026/002",
+            document=SimpleUploadedFile("FV-2026-002.pdf", b"%PDF-1.4 customer invoice", content_type="application/pdf"),
+        )
+        self.client.force_login(self.customer)
+
+        page = self.client.get(reverse("dashboard:customer-invoices"))
+        download = self.client.get(reverse("dashboard:customer-invoice-download", args=[invoice.pk]))
+
+        self.assertContains(page, "FV/2026/002")
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(b"".join(download.streaming_content), b"%PDF-1.4 customer invoice")
+
+    def test_customer_cannot_download_another_customers_invoice(self):
+        invoice = BillingInvoice.objects.create(
+            user=self.customer,
+            issued_at="2026-06-27",
+            invoice_number="FV/PRIVATE",
+            document=SimpleUploadedFile("private-invoice.pdf", b"%PDF-1.4 private", content_type="application/pdf"),
+        )
+        other_customer = User.objects.create_user(
+            username="other-invoice-customer",
+            email="other-invoice-customer@example.com",
+            password="strong-pass-123",
+        )
+        self.client.force_login(other_customer)
+
+        response = self.client.get(reverse("dashboard:customer-invoice-download", args=[invoice.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_admin_can_add_invoice_for_subscription_without_payment(self):
+        subscription = BillingSubscription.objects.create(
+            user=self.customer,
+            tier=UserPlanTier.PRO,
+            status="active",
+        )
+        BillingPayment.objects.create(
+            user=self.customer,
+            subscription=subscription,
+            stripe_invoice_id="in_paid_subscription_invoice",
+            amount_paid=40000,
+            currency="pln",
+            status="paid",
+            paid_at=timezone.now(),
+        )
+
+        overview = self.client.get(reverse("dashboard:billing-overview"))
+        self.assertContains(overview, "No invoice")
+
+        response = self.client.post(
+            reverse("dashboard:billing-invoice-add", args=[subscription.pk]),
+            {
+                "issued_at": "2026-06-28",
+                "invoice_number": "FV/SUB/001",
+                "document": SimpleUploadedFile("subscription.pdf", b"%PDF-1.4 subscription", content_type="application/pdf"),
+                "sent": "on",
+                "sent_at": "2026-06-28",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard:billing-overview"))
+        invoice = BillingInvoice.objects.get(invoice_number="FV/SUB/001")
+        self.assertEqual(invoice.user, self.customer)
+        self.assertEqual(invoice.subscription, subscription)
+        self.assertTrue(invoice.sent)
+        self.assertEqual(invoice.sent_at.isoformat(), "2026-06-28")
 
 
 class DashboardPlanLimitTests(TestCase):

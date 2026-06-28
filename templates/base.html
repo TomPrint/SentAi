@@ -122,13 +122,18 @@
                             </a>
                         </div>
                         {% if navbar_show_account_badges %}
-                            <div class="grid w-full {% if request.user.account_type == 'STAFF' %}grid-cols-1{% else %}grid-cols-3{% endif %} gap-2 sm:flex sm:w-auto">
+                            <div class="grid w-full {% if request.user.account_type == 'STAFF' %}grid-cols-1{% else %}grid-cols-4{% endif %} gap-2 sm:flex sm:w-auto">
                                 {% if request.user.account_type != 'STAFF' %}
                                     <a class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded border border-[#d9d9d9] bg-white px-2 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197] sm:px-3" href="{% url 'dashboard:plan-update' %}">
                                         <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                             <path d="M4 7h16l-2 11H6L4 7zm4-3h8v2H8V4z" fill="currentColor"/>
                                         </svg>
                                         <span class="truncate">{{ navbar_user_plan_tier }}</span>
+                                    </a>
+                                {% endif %}
+                                {% if request.user.account_type != 'STAFF' %}
+                                    <a class="inline-flex min-h-9 items-center justify-center rounded border border-[#d9d9d9] bg-white px-2 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197] sm:px-3" href="{% url 'dashboard:customer-invoices' %}">
+                                        {% if request.LANGUAGE_CODE == 'pl' %}Faktury{% else %}Invoices{% endif %}
                                     </a>
                                 {% endif %}
                                 <a href="{% url 'accounts:profile' %}" class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded border border-[#d9d9d9] bg-white px-2 py-2 font-mono text-xs font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197] sm:px-3">
@@ -159,7 +164,7 @@
                             <a class="inline-flex min-h-9 w-full items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/60 transition hover:border-[#5ca197] hover:text-[#5ca197] sm:w-auto" href="{% url 'admin:index' %}">Admin</a>
                             <a class="inline-flex min-h-9 w-full items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/60 transition hover:border-[#5ca197] hover:text-[#5ca197] sm:w-auto" href="{% url 'companies_api:organization-list' %}">Api</a>
                         {% endif %}
-                        <form action="{% url 'logout' %}" method="post" class="w-full sm:w-auto">
+                        <form action="{% url 'logout' %}" method="post" class="w-full sm:w-auto" data-logout-form>
                             {% csrf_token %}
                             <button class="inline-flex min-h-9 w-full items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 py-2 font-mono text-xs font-medium text-[#353535]/60 transition hover:border-rose-400 hover:text-rose-500 sm:w-auto" type="submit">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Wyloguj{% else %}Logout{% endif %}
@@ -172,7 +177,7 @@
     </header>
 
     <div class="mx-auto w-full max-w-7xl px-3 pb-16 pt-6 sm:px-6 lg:px-8">
-        <main class="grid gap-4">
+        <main class="grid min-w-0 gap-4">
             {% if messages %}
                 <section class="grid gap-2">
                     {% for message in messages %}
@@ -188,6 +193,18 @@
 
     <script>
         (() => {
+            document.querySelectorAll("[data-logout-form]").forEach((form) => {
+                form.addEventListener("submit", () => {
+                    const cookie = document.cookie
+                        .split("; ")
+                        .find((item) => item.startsWith("csrftoken="));
+                    const tokenInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
+                    if (cookie && tokenInput) {
+                        tokenInput.value = decodeURIComponent(cookie.split("=").slice(1).join("="));
+                    }
+                });
+            });
+
             const toggleButton = document.getElementById("mobile-menu-toggle");
             const mobileMenu = document.getElementById("mobile-nav-menu");
 

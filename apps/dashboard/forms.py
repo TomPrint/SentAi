@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.contrib.auth import get_user_model
 
 from apps.accounts.models import AccountType, USER_PLAN_ORGANIZATION_LIMITS, UserPlanTier
-from apps.billing.models import BillingCurrency, BillingCustomerType, BillingPlanPrice, BillingProfile
+from apps.billing.models import BillingCurrency, BillingCustomerType, BillingInvoice, BillingPayment, BillingPlanPrice, BillingProfile
 
 
 User = get_user_model()
@@ -240,6 +240,50 @@ class BillingPlanPriceForm(forms.ModelForm):
                 )
 
         return cleaned_data
+
+
+class BillingPaymentInvoiceForm(forms.ModelForm):
+    class Meta:
+        model = BillingPayment
+        fields = (
+            "invoice_issued",
+            "invoice_issued_at",
+            "invoice_number",
+            "invoice_document",
+            "invoice_sent",
+            "invoice_sent_at",
+        )
+        widgets = {
+            "invoice_issued_at": forms.DateInput(attrs={"type": "date"}),
+            "invoice_sent_at": forms.DateInput(attrs={"type": "date"}),
+            "invoice_number": forms.TextInput(attrs={"placeholder": "Accounting invoice number"}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("invoice_issued"):
+            if not cleaned_data.get("invoice_issued_at"):
+                self.add_error("invoice_issued_at", "Enter the date when the invoice was issued.")
+            if not (cleaned_data.get("invoice_number") or "").strip():
+                self.add_error("invoice_number", "Enter the invoice number.")
+            if not cleaned_data.get("invoice_document") and not self.instance.invoice_document:
+                self.add_error("invoice_document", "Upload the invoice PDF.")
+        if cleaned_data.get("invoice_sent"):
+            if not cleaned_data.get("invoice_issued"):
+                self.add_error("invoice_sent", "An invoice must be issued before it can be marked as sent.")
+            if not cleaned_data.get("invoice_sent_at"):
+                self.add_error("invoice_sent_at", "Enter the date when the invoice was sent.")
+        return cleaned_data
+
+
+class BillingInvoiceForm(forms.ModelForm):
+    class Meta:
+        model = BillingInvoice
+        fields = ("issued_at", "invoice_number", "document")
+        widgets = {
+            "issued_at": forms.DateInput(attrs={"type": "date"}),
+            "invoice_number": forms.TextInput(attrs={"placeholder": "Invoice number"}),
+        }
 
 
 class BillingProfileForm(forms.ModelForm):

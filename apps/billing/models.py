@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 
 from apps.accounts.models import UserPlanTier
@@ -174,6 +175,16 @@ class BillingPayment(models.Model):
     paid_at = models.DateTimeField(blank=True, null=True)
     hosted_invoice_url = models.URLField(blank=True)
     invoice_pdf = models.URLField(blank=True)
+    invoice_issued = models.BooleanField(default=False)
+    invoice_issued_at = models.DateField(blank=True, null=True)
+    invoice_sent = models.BooleanField(default=False)
+    invoice_sent_at = models.DateField(blank=True, null=True)
+    invoice_number = models.CharField(max_length=100, blank=True)
+    invoice_document = models.FileField(
+        upload_to="invoices/%Y/%m/",
+        blank=True,
+        validators=[FileExtensionValidator(["pdf"])],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -185,3 +196,30 @@ class BillingPayment(models.Model):
 
     def formatted_amount(self) -> str:
         return f"{self.amount_paid / 100:.2f} {self.currency.upper()}"
+
+
+class BillingInvoice(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="billing_invoices")
+    subscription = models.ForeignKey(
+        BillingSubscription,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="invoices",
+    )
+    invoice_number = models.CharField(max_length=100)
+    issued_at = models.DateField()
+    document = models.FileField(
+        upload_to="invoices/%Y/%m/",
+        validators=[FileExtensionValidator(["pdf"])],
+    )
+    sent = models.BooleanField(default=False)
+    sent_at = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-issued_at", "-created_at"]
+
+    def __str__(self):
+        return f"{self.invoice_number} - {self.user}"

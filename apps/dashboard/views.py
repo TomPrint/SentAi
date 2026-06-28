@@ -4,7 +4,7 @@ import stripe
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from apps.accounts.models import AccountType, User, UserPlanTier
-from apps.billing.models import BillingPayment, BillingPlanPrice, BillingProfile, BillingSubscription
+from apps.billing.models import BillingInvoice, BillingPayment, BillingPlanPrice, BillingProfile, BillingSubscription
 from apps.billing.services import (
     downgrade_to_basic,
     format_amount,
@@ -32,7 +32,7 @@ from apps.companies.models import Organization, VerificationStatus
 from apps.companies.services import public_feed_urls
 from apps.subscriptions.models import Subscription
 
-from .forms import BillingPlanPriceForm, BillingProfileForm, SellerCreateForm, UserPlanUpdateForm, ProspectClientForm, ProspectActivityForm
+from .forms import BillingInvoiceForm, BillingPaymentInvoiceForm, BillingPlanPriceForm, BillingProfileForm, SellerCreateForm, UserPlanUpdateForm, ProspectClientForm, ProspectActivityForm
 from .forms import ProspectLinkClientForm
 
 
@@ -607,6 +607,22 @@ class PlanCheckoutSuccessView(LoginRequiredMixin, View):
                     fallback_user=request.user,
                     fallback_tier=selected_tier,
                 )
+                latest_invoice = (
+                    stripe_subscription.get("latest_invoice")
+                    if isinstance(stripe_subscription, dict)
+                    else getattr(stripe_subscription, "latest_invoice", None)
+                )
+                latest_invoice_id = (
+                    latest_invoice.get("id")
+                    if isinstance(latest_invoice, dict)
+                    else getattr(latest_invoice, "id", latest_invoice)
+                )
+                if latest_invoice_id:
+                    try:
+                        record_invoice_payment(stripe.Invoice.retrieve(latest_invoice_id))
+                    except Exception:
+                        # Webhook delivery remains the fallback when invoice retrieval is temporarily unavailable.
+                        pass
             except Exception:
                 billing_subscription = None
 
@@ -908,7 +924,7 @@ class BillingOverviewView(AdminRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         payments = BillingPayment.objects.select_related("user", "subscription")
-        subscriptions = BillingSubscription.objects.select_related("user", "plan_price")
+        subscriptions = BillingSubscription.objects.select_related("user", "plan_price").prefetch_related("invoices", "payments")
         now = timezone.now()
 
         subscription_rows = []
@@ -916,10 +932,13 @@ class BillingOverviewView(AdminRequiredMixin, TemplateView):
             currency = subscription.plan_price.currency if subscription.plan_price else settings.STRIPE_CURRENCY
             current_price = get_active_plan_price(subscription.tier, currency)
             subscription.current_public_price_label = current_price.formatted_amount() if current_price else "-"
+            subscription.has_successful_payment = any(payment.status == "paid" for payment in subscription.payments.all())
+            subscription.latest_manual_invoice = next(iter(subscription.invoices.all()), None)
             subscription_rows.append(subscription)
 
         context["subscriptions"] = subscription_rows
         context["payments"] = payments[:25]
+        context["invoices"] = BillingInvoice.objects.select_related("user", "subscription")[:50]
         total_turnover = payments.filter(status="paid").aggregate(total=models.Sum("amount_paid"))["total"] or 0
         year_turnover = payments.filter(status="paid", paid_at__year=now.year).aggregate(total=models.Sum("amount_paid"))["total"] or 0
         month_turnover = payments.filter(status="paid", paid_at__year=now.year, paid_at__month=now.month).aggregate(total=models.Sum("amount_paid"))["total"] or 0
@@ -930,6 +949,75 @@ class BillingOverviewView(AdminRequiredMixin, TemplateView):
         context["canceling_subscription_count"] = subscriptions.filter(cancel_at_period_end=True).count()
         context["problem_subscription_count"] = subscriptions.filter(status__in=["past_due", "unpaid"]).count()
         return context
+
+
+class BillingInvoiceCreateView(AdminRequiredMixin, View):
+    def post(self, request, subscription_pk):
+        subscription = get_object_or_404(BillingSubscription, pk=subscription_pk)
+        if subscription.tier == UserPlanTier.BASIC or not subscription.payments.filter(status="paid").exists():
+            messages.error(request, "An invoice can only be added after Stripe records a successful paid-plan payment.")
+            return redirect("dashboard:billing-overview")
+        form = BillingInvoiceForm(request.POST, request.FILES)
+        if form.is_valid():
+            invoice = form.save(commit=False)
+            invoice.user = subscription.user
+            invoice.subscription = subscription
+            invoice.sent = True
+            invoice.sent_at = invoice.issued_at
+            invoice.save()
+            messages.success(request, "Invoice has been added.")
+        else:
+            messages.error(request, "Invoice could not be added: " + " ".join(form.errors.as_text().splitlines()))
+        return redirect("dashboard:billing-overview")
+
+
+class BillingPaymentInvoiceUpdateView(AdminRequiredMixin, UpdateView):
+    model = BillingPayment
+    form_class = BillingPaymentInvoiceForm
+    http_method_names = ["post"]
+
+    def form_valid(self, form):
+        messages.success(self.request, "Invoice information has been updated.")
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(self.request, "Invoice information could not be updated: " + " ".join(form.errors.as_text().splitlines()))
+        return redirect("dashboard:billing-overview")
+
+    def get_success_url(self):
+        return reverse("dashboard:billing-overview")
+
+
+class BillingInvoiceAdminDownloadView(AdminRequiredMixin, View):
+    def get(self, request, pk):
+        invoice = get_object_or_404(BillingInvoice, pk=pk)
+        return FileResponse(
+            invoice.document.open("rb"),
+            as_attachment=True,
+            filename=invoice.document.name.rsplit("/", 1)[-1],
+            content_type="application/pdf",
+        )
+
+
+class CustomerInvoiceListView(LoginRequiredMixin, TemplateView):
+    template_name = "dashboard/customer_invoices.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["invoices"] = BillingInvoice.objects.filter(user=self.request.user)
+        context["billing_profile"] = getattr(self.request.user, "billing_profile", None)
+        return context
+
+
+class CustomerInvoiceDownloadView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        invoice = get_object_or_404(BillingInvoice, pk=pk, user=request.user)
+        return FileResponse(
+            invoice.document.open("rb"),
+            as_attachment=True,
+            filename=invoice.document.name.rsplit("/", 1)[-1],
+            content_type="application/pdf",
+        )
 
 
 class ClientListView(AdminRequiredMixin, TemplateView):

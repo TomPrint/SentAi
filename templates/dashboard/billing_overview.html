@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<section class="rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
+<section class="min-w-0 rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
             <span class="inline-flex items-center gap-1.5 rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-[#5ca197]">
@@ -40,9 +40,9 @@
     </div>
 </section>
 
-<section class="rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
+<section class="min-w-0 rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
     <h2 class="font-display text-2xl font-semibold tracking-tight text-[#284b63]">Subscriptions</h2>
-    <div class="mt-4 overflow-x-auto">
+    <div class="mt-4 max-w-full overflow-x-auto">
         <table class="min-w-full divide-y divide-[#d9d9d9] text-left">
             <thead>
                 <tr class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
@@ -53,6 +53,8 @@
                     <th class="px-4 py-3">Current public price</th>
                     <th class="px-4 py-3">Next renewal</th>
                     <th class="px-4 py-3">Last payment</th>
+                    <th class="px-4 py-3">Invoice status</th>
+                    <th class="px-4 py-3">Invoice details</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-[#d9d9d9] font-mono text-xs">
@@ -65,45 +67,68 @@
                         <td class="px-4 py-3">{{ sub.current_public_price_label }}</td>
                         <td class="px-4 py-3">{{ sub.current_period_end|date:"Y-m-d H:i"|default:"-" }}</td>
                         <td class="px-4 py-3">{{ sub.latest_payment_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                        <td class="px-4 py-3">
+                            {% if sub.latest_manual_invoice %}
+                                {% if sub.latest_manual_invoice.sent %}
+                                    <span class="inline-flex rounded-full border border-[#5ca197]/30 bg-[#5ca197]/10 px-2.5 py-1 text-[#397b72]">Sent{% if sub.latest_manual_invoice.sent_at %} / {{ sub.latest_manual_invoice.sent_at|date:"Y-m-d" }}{% endif %}</span>
+                                {% else %}
+                                    <span class="inline-flex rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-amber-700">Issued</span>
+                                {% endif %}
+                            {% elif sub.has_successful_payment %}
+                                <span class="inline-flex rounded-full border border-rose-300 bg-rose-50 px-2.5 py-1 text-rose-600">No invoice</span>
+                            {% else %}
+                                <span class="text-[#353535]/45">Waiting for paid Stripe payment</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if sub.has_successful_payment %}
+                                <form class="grid w-[34rem] max-w-full grid-cols-[8.5rem_10rem_minmax(10rem,1fr)_auto] items-end gap-2" method="post" enctype="multipart/form-data" action="{% url 'dashboard:billing-invoice-add' sub.pk %}">
+                                    {% csrf_token %}
+                                    <label><span class="mb-1 block text-[9px] uppercase text-[#353535]/40">Invoice date</span><input type="date" name="issued_at" required></label>
+                                    <label><span class="mb-1 block text-[9px] uppercase text-[#353535]/40">Invoice number</span><input type="text" name="invoice_number" maxlength="100" placeholder="Invoice number" required></label>
+                                    <label><span class="mb-1 block text-[9px] uppercase text-[#353535]/40">Invoice PDF</span><input class="block min-h-9 w-full text-[10px] file:mr-2 file:rounded file:border-0 file:bg-[#f0f6f5] file:px-2 file:py-2" type="file" name="document" accept="application/pdf,.pdf" required></label>
+                                    <button class="min-h-9 rounded bg-[#5ca197] px-3 py-2 text-white hover:bg-[#4d8f85]" type="submit">Save invoice</button>
+                                </form>
+                            {% else %}
+                                <span class="text-[#353535]/45">Available after payment</span>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% empty %}
-                    <tr><td class="px-4 py-6 text-[#353535]/45" colspan="7">No subscriptions yet.</td></tr>
+                    <tr><td class="px-4 py-6 text-[#353535]/45" colspan="9">No subscriptions yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
 
-<section class="rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
-    <h2 class="font-display text-2xl font-semibold tracking-tight text-[#284b63]">Latest payments</h2>
-    <div class="mt-4 overflow-x-auto">
+<section class="min-w-0 rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
+    <div>
+        <h2 class="font-display text-2xl font-semibold tracking-tight text-[#284b63]">Issued invoices</h2>
+        <p class="mt-1 text-sm text-[#353535]/55">Manual invoices added for subscribed customers.</p>
+    </div>
+    <div class="mt-4 max-w-full overflow-x-auto">
         <table class="min-w-full divide-y divide-[#d9d9d9] text-left">
             <thead>
                 <tr class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
                     <th class="px-4 py-3">Customer</th>
-                    <th class="px-4 py-3">Amount</th>
-                    <th class="px-4 py-3">Status</th>
-                    <th class="px-4 py-3">Paid</th>
-                    <th class="px-4 py-3">Invoice</th>
+                    <th class="px-4 py-3">Invoice number</th>
+                    <th class="px-4 py-3">Issued</th>
+                    <th class="px-4 py-3">Sent status</th>
+                    <th class="px-4 py-3">Document</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-[#d9d9d9] font-mono text-xs">
-                {% for payment in payments %}
+                {% for invoice in invoices %}
                     <tr>
-                        <td class="px-4 py-3">{{ payment.user.email }}</td>
-                        <td class="px-4 py-3">{{ payment.formatted_amount }}</td>
-                        <td class="px-4 py-3">{{ payment.status }}</td>
-                        <td class="px-4 py-3">{{ payment.paid_at|date:"Y-m-d H:i"|default:"-" }}</td>
-                        <td class="px-4 py-3">
-                            {% if payment.hosted_invoice_url %}
-                                <a class="text-[#5ca197] hover:underline" href="{{ payment.hosted_invoice_url }}" target="_blank" rel="noopener">Open</a>
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
+                        <td class="px-4 py-3">{{ invoice.user.email }}</td>
+                        <td class="px-4 py-3 font-semibold">{{ invoice.invoice_number }}</td>
+                        <td class="px-4 py-3">{{ invoice.issued_at|date:"Y-m-d" }}</td>
+                        <td class="px-4 py-3">{% if invoice.sent %}Sent{% if invoice.sent_at %} / {{ invoice.sent_at|date:"Y-m-d" }}{% endif %}{% else %}Not sent{% endif %}</td>
+                        <td class="px-4 py-3"><a class="text-[#5ca197] hover:underline" href="{% url 'dashboard:billing-invoice-admin-download' invoice.pk %}">Download PDF</a></td>
                     </tr>
                 {% empty %}
-                    <tr><td class="px-4 py-6 text-[#353535]/45" colspan="5">No payments yet.</td></tr>
+                    <tr><td class="px-4 py-6 text-[#353535]/45" colspan="5">No invoices added yet. Use the form next to a subscription above.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
