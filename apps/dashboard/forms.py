@@ -1,11 +1,65 @@
+import re
+
 from django import forms
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 
 from apps.accounts.models import AccountType, USER_PLAN_ORGANIZATION_LIMITS, UserPlanTier
+from apps.billing.models import BillingCurrency, BillingCustomerType, BillingInvoice, BillingPayment, BillingPlanPrice, BillingProfile
 
 
 User = get_user_model()
+
+
+EU_VAT_COUNTRY_CODES = {
+    "AT",
+    "BE",
+    "BG",
+    "CY",
+    "CZ",
+    "DE",
+    "DK",
+    "EE",
+    "EL",
+    "ES",
+    "FI",
+    "FR",
+    "HR",
+    "HU",
+    "IE",
+    "IT",
+    "LT",
+    "LU",
+    "LV",
+    "MT",
+    "NL",
+    "PL",
+    "PT",
+    "RO",
+    "SE",
+    "SI",
+    "SK",
+}
+
+
+def normalize_vat_id(value: str, country: str) -> str:
+    normalized = re.sub(r"[\s.\-_/]", "", value or "").upper()
+    country = (country or "").upper()
+    if country and normalized and not normalized.startswith(country):
+        if len(normalized) >= 2 and normalized[:2].isalpha():
+            return normalized
+        return f"{country}{normalized}"
+    return normalized
+
+
+def is_valid_polish_nip(vat_id: str) -> bool:
+    number = vat_id[2:] if vat_id.startswith("PL") else vat_id
+    if not re.fullmatch(r"\d{10}", number):
+        return False
+    weights = [6, 5, 7, 2, 3, 4, 5, 6, 7]
+    checksum = sum(int(number[index]) * weights[index] for index in range(9)) % 11
+    return checksum != 10 and checksum == int(number[9])
 
 
 class RegisteredClientChoiceField(forms.ModelChoiceField):
@@ -26,6 +80,13 @@ class UserPlanUpdateForm(forms.Form):
         choices=UserPlanTier.choices,
         widget=forms.RadioSelect(attrs={"class": "plan-tier-radio"}),
     )
+    billing_currency = forms.ChoiceField(
+        choices=BillingCurrency.choices,
+        initial=BillingCurrency.PLN,
+        required=False,
+        widget=forms.HiddenInput,
+    )
+    subscription_terms_accepted = forms.BooleanField(required=False)
 
     def __init__(self, *args, user=None, **kwargs):
         self.user = user
@@ -46,6 +107,22 @@ class UserPlanUpdateForm(forms.Form):
                 f"Please reduce to {new_limit} or fewer before selecting this plan."
             )
         return selected_tier
+
+    def clean_billing_currency(self):
+        return (self.cleaned_data.get("billing_currency") or BillingCurrency.PLN).lower()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        selected_tier = cleaned_data.get("plan_tier")
+        terms_accepted = cleaned_data.get("subscription_terms_accepted")
+
+        if selected_tier in {UserPlanTier.PLUS, UserPlanTier.PRO} and not terms_accepted:
+            self.add_error(
+                "subscription_terms_accepted",
+                "You must accept the subscription terms before continuing to payment.",
+            )
+
+        return cleaned_data
 
 
 class SellerCreateForm(forms.Form):
@@ -114,6 +191,161 @@ class SellerCreateForm(forms.Form):
             account_type=AccountType.STAFF,
             is_active=True,
         )
+
+
+class BillingPlanPriceForm(forms.ModelForm):
+    amount = forms.DecimalField(
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        label="Amount",
+        help_text="Enter the amount like Stripe, e.g. 49.00 PLN or 12.00 EUR.",
+    )
+
+    class Meta:
+        model = BillingPlanPrice
+        fields = ("tier", "stripe_price_id", "amount", "currency", "interval", "active_for_new_customers", "notes")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and not self.is_bound:
+            self.initial["amount"] = Decimal(self.instance.amount) / Decimal("100")
+
+    def clean_amount(self):
+        value = self.cleaned_data["amount"]
+        try:
+            smallest_unit_amount = (value * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        except (InvalidOperation, TypeError):
+            raise forms.ValidationError("Enter a valid amount, e.g. 49.00.")
+        return int(smallest_unit_amount)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        tier = cleaned_data.get("tier")
+        active = cleaned_data.get("active_for_new_customers")
+
+        currency = cleaned_data.get("currency")
+
+        if tier and currency and active:
+            qs = BillingPlanPrice.objects.filter(
+                tier=tier,
+                currency=currency,
+                active_for_new_customers=True,
+            )
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(
+                    "This plan already has an active price for new customers. "
+                    "Archive the current active price for this currency before activating another one."
+                )
+
+        return cleaned_data
+
+
+class BillingPaymentInvoiceForm(forms.ModelForm):
+    class Meta:
+        model = BillingPayment
+        fields = (
+            "invoice_issued",
+            "invoice_issued_at",
+            "invoice_number",
+            "invoice_document",
+            "invoice_sent",
+            "invoice_sent_at",
+        )
+        widgets = {
+            "invoice_issued_at": forms.DateInput(attrs={"type": "date"}),
+            "invoice_sent_at": forms.DateInput(attrs={"type": "date"}),
+            "invoice_number": forms.TextInput(attrs={"placeholder": "Accounting invoice number"}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("invoice_issued"):
+            if not cleaned_data.get("invoice_issued_at"):
+                self.add_error("invoice_issued_at", "Enter the date when the invoice was issued.")
+            if not (cleaned_data.get("invoice_number") or "").strip():
+                self.add_error("invoice_number", "Enter the invoice number.")
+            if not cleaned_data.get("invoice_document") and not self.instance.invoice_document:
+                self.add_error("invoice_document", "Upload the invoice PDF.")
+        if cleaned_data.get("invoice_sent"):
+            if not cleaned_data.get("invoice_issued"):
+                self.add_error("invoice_sent", "An invoice must be issued before it can be marked as sent.")
+            if not cleaned_data.get("invoice_sent_at"):
+                self.add_error("invoice_sent_at", "Enter the date when the invoice was sent.")
+        return cleaned_data
+
+
+class BillingInvoiceForm(forms.ModelForm):
+    class Meta:
+        model = BillingInvoice
+        fields = ("issued_at", "invoice_number", "document")
+        widgets = {
+            "issued_at": forms.DateInput(attrs={"type": "date"}),
+            "invoice_number": forms.TextInput(attrs={"placeholder": "Invoice number"}),
+        }
+
+
+class BillingProfileForm(forms.ModelForm):
+    class Meta:
+        model = BillingProfile
+        fields = (
+            "company_name",
+            "tax_id",
+            "street",
+            "postal_code",
+            "city",
+            "country",
+            "invoice_email",
+        )
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+        if self.user and not self.is_bound:
+            self.fields["invoice_email"].initial = self.user.email
+            if getattr(self.user, "company_name", ""):
+                self.fields["company_name"].initial = self.user.company_name
+        self.fields["country"].help_text = "Use PL for Polish customers. Other countries will use EUR checkout."
+        self.fields["tax_id"].label = "VAT ID"
+        self.fields["tax_id"].help_text = "Use the country prefix, e.g. PL1234567890. If omitted, we add the selected country."
+        self.fields["tax_id"].required = True
+        self.fields["company_name"].required = True
+
+    def clean_country(self):
+        return self.cleaned_data["country"].strip().upper()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        company_name = (cleaned_data.get("company_name") or "").strip()
+        country = (cleaned_data.get("country") or "").strip().upper()
+        tax_id = normalize_vat_id(cleaned_data.get("tax_id") or "", country)
+
+        cleaned_data["customer_type"] = BillingCustomerType.COMPANY
+        if not company_name:
+            self.add_error("company_name", "Company name is required for company billing.")
+        if not tax_id:
+            self.add_error("tax_id", "VAT ID is required for billing.")
+        elif country and tax_id[:2].isalpha() and tax_id[:2] != country:
+            self.add_error("tax_id", "VAT ID country prefix must match the selected billing country.")
+        elif country == "PL" and not is_valid_polish_nip(tax_id):
+            self.add_error("tax_id", "Enter a valid Polish VAT ID/NIP, e.g. PL1234567890.")
+        elif country in EU_VAT_COUNTRY_CODES and not re.fullmatch(r"[A-Z]{2}[A-Z0-9]{2,13}", tax_id):
+            self.add_error("tax_id", "Enter a valid EU VAT ID with country prefix, e.g. DE123456789.")
+        elif not re.fullmatch(r"[A-Z]{2}[A-Z0-9]{2,20}", tax_id):
+            self.add_error("tax_id", "Enter a valid VAT ID with country prefix.")
+        else:
+            cleaned_data["tax_id"] = tax_id
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.customer_type = BillingCustomerType.COMPANY
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 class ProspectClientForm(forms.Form):

@@ -1,8 +1,11 @@
 from django.contrib import messages
-from django.contrib.auth import login, update_session_auth_hash
+import stripe
+from django.conf import settings
+from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import FormView, TemplateView
 from rest_framework import permissions, status
 from rest_framework.authtoken.models import Token
@@ -142,3 +145,41 @@ class ProfilePasswordChangeView(LoginRequiredMixin, FormView):
             language_code=self.request.LANGUAGE_CODE,
         )
         return context
+
+
+class AccountCloseView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        billing_subscription = getattr(user, "billing_subscription", None)
+        subscription_id = getattr(billing_subscription, "stripe_subscription_id", "") if billing_subscription else ""
+        has_active_subscription = (
+            billing_subscription
+            and subscription_id
+            and billing_subscription.status in {"active", "trialing", "past_due"}
+        )
+
+        if has_active_subscription:
+            if not settings.STRIPE_SECRET_KEY:
+                if request.LANGUAGE_CODE == "pl":
+                    messages.error(request, "Nie mozna zamknac konta, bo Stripe nie jest skonfigurowany do anulowania subskrypcji.")
+                else:
+                    messages.error(request, "Account cannot be closed because Stripe is not configured to cancel the subscription.")
+                return redirect("accounts:profile")
+
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            try:
+                stripe.Subscription.delete(subscription_id)
+            except Exception:
+                if request.LANGUAGE_CODE == "pl":
+                    messages.error(request, "Nie udalo sie anulowac subskrypcji Stripe. Konto nie zostalo zamkniete.")
+                else:
+                    messages.error(request, "Could not cancel the Stripe subscription. Account was not closed.")
+                return redirect("accounts:profile")
+
+        logout(request)
+        user.delete()
+        if request.LANGUAGE_CODE == "pl":
+            messages.success(request, "Konto zostalo zamkniete. Dane zostaly usuniete, a subskrypcja anulowana.")
+        else:
+            messages.success(request, "Your account has been closed. Data was deleted and the subscription was canceled.")
+        return redirect("login")

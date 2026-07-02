@@ -69,9 +69,12 @@ SITE_BASE_URL = os.getenv("SITE_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY", "")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_CURRENCY = os.getenv("STRIPE_CURRENCY", "pln").strip().lower()
 STRIPE_PLUS_PRICE_AMOUNT = env_int("STRIPE_PLUS_PRICE_AMOUNT", 4900)
 STRIPE_PRO_PRICE_AMOUNT = env_int("STRIPE_PRO_PRICE_AMOUNT", 9900)
+STRIPE_PLUS_PRICE_ID = os.getenv("STRIPE_PLUS_PRICE_ID", "")
+STRIPE_PRO_PRICE_ID = os.getenv("STRIPE_PRO_PRICE_ID", "")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -85,6 +88,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "django_filters",
     "apps.accounts",
+    "apps.billing",
     "apps.subscriptions",
     "apps.companies",
     "apps.dashboard",

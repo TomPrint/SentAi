@@ -1,19 +1,159 @@
+import json
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from django.urls import reverse
 from django.utils.translation import override
 
 from apps.accounts.models import AccountType, UserPlanTier
+from apps.billing.models import BillingInvoice, BillingPayment, BillingPlanPrice, BillingProfile, BillingSubscription
 from apps.companies.models import Organization, VerificationStatus
 from apps.sales.models import ProspectActivity, ProspectClient, SellerSettlement
 
 
 User = get_user_model()
+
+
+class BillingInvoiceTrackingTests(TestCase):
+    def setUp(self):
+        self.media_directory = TemporaryDirectory()
+        self.media_override = override_settings(MEDIA_ROOT=self.media_directory.name)
+        self.media_override.enable()
+        self.admin = User.objects.create_superuser(
+            username="invoice-admin",
+            email="invoice-admin@example.com",
+            password="strong-pass-123",
+        )
+        self.customer = User.objects.create_user(
+            username="invoice-customer",
+            email="invoice-customer@example.com",
+            password="strong-pass-123",
+        )
+        self.payment = BillingPayment.objects.create(
+            user=self.customer,
+            stripe_invoice_id="in_invoice_tracking",
+            amount_paid=4900,
+            currency="pln",
+            status="paid",
+        )
+        self.client.force_login(self.admin)
+
+    def tearDown(self):
+        self.media_override.disable()
+        self.media_directory.cleanup()
+        super().tearDown()
+
+    def test_admin_can_save_invoice_tracking_information(self):
+        response = self.client.post(
+            reverse("dashboard:billing-payment-invoice-update", args=[self.payment.pk]),
+            {
+                "invoice_issued": "on",
+                "invoice_issued_at": "2026-06-27",
+                "invoice_sent": "on",
+                "invoice_sent_at": "2026-06-28",
+                "invoice_number": "FV/2026/001",
+                "invoice_document": SimpleUploadedFile(
+                    "FV-2026-001.pdf",
+                    b"%PDF-1.4 test invoice",
+                    content_type="application/pdf",
+                ),
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard:billing-overview"))
+        self.payment.refresh_from_db()
+        self.assertTrue(self.payment.invoice_issued)
+        self.assertEqual(self.payment.invoice_issued_at.isoformat(), "2026-06-27")
+        self.assertTrue(self.payment.invoice_sent)
+        self.assertEqual(self.payment.invoice_sent_at.isoformat(), "2026-06-28")
+        self.assertEqual(self.payment.invoice_number, "FV/2026/001")
+
+    def test_sent_invoice_requires_date_and_number(self):
+        response = self.client.post(
+            reverse("dashboard:billing-payment-invoice-update", args=[self.payment.pk]),
+            {"invoice_sent": "on"},
+        )
+
+        self.assertRedirects(response, reverse("dashboard:billing-overview"))
+        self.payment.refresh_from_db()
+        self.assertFalse(self.payment.invoice_sent)
+
+    def test_customer_can_list_and_download_own_issued_invoice(self):
+        invoice = BillingInvoice.objects.create(
+            user=self.customer,
+            issued_at="2026-06-27",
+            invoice_number="FV/2026/002",
+            document=SimpleUploadedFile("FV-2026-002.pdf", b"%PDF-1.4 customer invoice", content_type="application/pdf"),
+        )
+        self.client.force_login(self.customer)
+
+        page = self.client.get(reverse("dashboard:customer-invoices"))
+        download = self.client.get(reverse("dashboard:customer-invoice-download", args=[invoice.pk]))
+
+        self.assertContains(page, "FV/2026/002")
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(b"".join(download.streaming_content), b"%PDF-1.4 customer invoice")
+
+    def test_customer_cannot_download_another_customers_invoice(self):
+        invoice = BillingInvoice.objects.create(
+            user=self.customer,
+            issued_at="2026-06-27",
+            invoice_number="FV/PRIVATE",
+            document=SimpleUploadedFile("private-invoice.pdf", b"%PDF-1.4 private", content_type="application/pdf"),
+        )
+        other_customer = User.objects.create_user(
+            username="other-invoice-customer",
+            email="other-invoice-customer@example.com",
+            password="strong-pass-123",
+        )
+        self.client.force_login(other_customer)
+
+        response = self.client.get(reverse("dashboard:customer-invoice-download", args=[invoice.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_admin_can_add_invoice_for_subscription_without_payment(self):
+        subscription = BillingSubscription.objects.create(
+            user=self.customer,
+            tier=UserPlanTier.PRO,
+            status="active",
+        )
+        BillingPayment.objects.create(
+            user=self.customer,
+            subscription=subscription,
+            stripe_invoice_id="in_paid_subscription_invoice",
+            amount_paid=40000,
+            currency="pln",
+            status="paid",
+            paid_at=timezone.now(),
+        )
+
+        overview = self.client.get(reverse("dashboard:billing-overview"))
+        self.assertContains(overview, "No invoice")
+
+        response = self.client.post(
+            reverse("dashboard:billing-invoice-add", args=[subscription.pk]),
+            {
+                "issued_at": "2026-06-28",
+                "invoice_number": "FV/SUB/001",
+                "document": SimpleUploadedFile("subscription.pdf", b"%PDF-1.4 subscription", content_type="application/pdf"),
+                "sent": "on",
+                "sent_at": "2026-06-28",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard:billing-overview"))
+        invoice = BillingInvoice.objects.get(invoice_number="FV/SUB/001")
+        self.assertEqual(invoice.user, self.customer)
+        self.assertEqual(invoice.subscription, subscription)
+        self.assertTrue(invoice.sent)
+        self.assertEqual(invoice.sent_at.isoformat(), "2026-06-28")
 
 
 class DashboardPlanLimitTests(TestCase):
@@ -29,6 +169,20 @@ class DashboardPlanLimitTests(TestCase):
             password="strong-pass-123",
         )
         self.client.force_login(self.user)
+
+    def create_billing_profile(self, user=None, country="PL"):
+        user = user or self.user
+        return BillingProfile.objects.create(
+            user=user,
+            customer_type="company",
+            company_name="Client Company",
+            tax_id="1234567890",
+            street="Test Street 1",
+            postal_code="00-001",
+            city="Warsaw",
+            country=country,
+            invoice_email=user.email,
+        )
 
     def test_add_company_button_visible_when_under_limit(self):
         response = self.client.get(reverse("dashboard:home"))
@@ -75,20 +229,551 @@ class DashboardPlanLimitTests(TestCase):
         STRIPE_PLUS_PRICE_AMOUNT=4900,
         STRIPE_PRO_PRICE_AMOUNT=9900,
         STRIPE_CURRENCY="pln",
+        STRIPE_PLUS_PRICE_ID="price_plus_test",
+        STRIPE_PRO_PRICE_ID="price_pro_test",
     )
     @patch("apps.dashboard.views.stripe.checkout.Session.create")
     def test_user_selecting_plus_starts_stripe_checkout(self, mock_checkout_create):
+        self.create_billing_profile(country="PL")
         mock_checkout_create.return_value = SimpleNamespace(url="https://checkout.stripe.test/session")
 
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {"plan_tier": UserPlanTier.PLUS, "billing_currency": "pln", "subscription_terms_accepted": "on"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "https://checkout.stripe.test/session")
+        _, kwargs = mock_checkout_create.call_args
+        self.assertEqual(kwargs["mode"], "subscription")
+        self.assertEqual(kwargs["line_items"][0]["price"], "price_plus_test")
+        self.assertEqual(kwargs["metadata"]["billing_country"], "PL")
+        self.assertEqual(kwargs["metadata"]["billing_currency"], "pln")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.plan_tier, UserPlanTier.BASIC)
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy", STRIPE_PLUS_PRICE_ID="price_plus_test")
+    @patch("apps.dashboard.views.stripe.checkout.Session.create")
+    def test_user_selecting_paid_plan_must_accept_subscription_terms(self, mock_checkout_create):
         response = self.client.post(
             reverse("dashboard:plan-update"),
             {"plan_tier": UserPlanTier.PLUS},
         )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "https://checkout.stripe.test/session")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "You must accept the subscription terms")
+        mock_checkout_create.assert_not_called()
         self.user.refresh_from_db()
         self.assertEqual(self.user.plan_tier, UserPlanTier.BASIC)
+
+    @override_settings(STRIPE_SECRET_KEY="")
+    def test_user_can_open_subscription_management_page(self):
+        BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+
+        response = self.client.get(reverse("dashboard:billing-portal"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Manage subscription")
+        self.assertContains(response, "PLUS")
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.Subscription.retrieve")
+    def test_subscription_management_page_refreshes_period_dates_from_stripe(self, mock_subscription_retrieve):
+        price = BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_pln",
+            amount=20000,
+            currency="pln",
+            active_for_new_customers=True,
+        )
+        BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            plan_price=price,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+        mock_subscription_retrieve.return_value = {
+            "id": "sub_test_123",
+            "customer": "cus_test_123",
+            "status": "active",
+            "cancel_at_period_end": False,
+            "metadata": {"user_id": str(self.user.pk), "plan_tier": UserPlanTier.PLUS},
+            "items": {
+                "data": [
+                    {
+                        "current_period_start": 1767225600,
+                        "current_period_end": 1798761600,
+                        "price": {"id": price.stripe_price_id},
+                    }
+                ]
+            },
+        }
+
+        response = self.client.get(reverse("dashboard:billing-portal"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "2026-01-01")
+        self.assertContains(response, "2027-01-01")
+        subscription = BillingSubscription.objects.get(user=self.user)
+        self.assertIsNotNone(subscription.current_period_start)
+        self.assertIsNotNone(subscription.current_period_end)
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.Subscription.modify")
+    def test_user_can_cancel_subscription_renewal_at_period_end(self, mock_subscription_modify):
+        subscription = BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+
+        response = self.client.post(reverse("dashboard:billing-subscription-cancel"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:billing-portal"))
+        mock_subscription_modify.assert_called_once_with("sub_test_123", cancel_at_period_end=True)
+        subscription.refresh_from_db()
+        self.assertTrue(subscription.cancel_at_period_end)
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.Subscription.modify")
+    def test_user_can_reactivate_subscription_renewal(self, mock_subscription_modify):
+        subscription = BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+            cancel_at_period_end=True,
+        )
+
+        response = self.client.post(reverse("dashboard:billing-subscription-reactivate"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:billing-portal"))
+        mock_subscription_modify.assert_called_once_with("sub_test_123", cancel_at_period_end=False)
+        subscription.refresh_from_db()
+        self.assertFalse(subscription.cancel_at_period_end)
+
+    def test_admin_can_add_billing_plan_price(self):
+        admin = User.objects.create_superuser(
+            username="admin-price",
+            email="admin-price@example.com",
+            password="strong-pass-123",
+        )
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse("dashboard:billing-price-management"),
+            {
+                "tier": UserPlanTier.PLUS,
+                "stripe_price_id": "price_plus_79",
+                "amount": "79.00",
+                "currency": "pln",
+                "interval": "year",
+                "active_for_new_customers": "on",
+                "notes": "new price",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        price = BillingPlanPrice.objects.get(stripe_price_id="price_plus_79")
+        self.assertEqual(price.amount, 7900)
+
+    def test_admin_can_keep_active_pln_and_eur_prices_for_same_plan(self):
+        admin = User.objects.create_superuser(
+            username="admin-currency",
+            email="admin-currency@example.com",
+            password="strong-pass-123",
+        )
+        BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_pln",
+            amount=7900,
+            currency="pln",
+            active_for_new_customers=True,
+        )
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse("dashboard:billing-price-management"),
+            {
+                "tier": UserPlanTier.PLUS,
+                "stripe_price_id": "price_plus_eur",
+                "amount": "19.00",
+                "currency": "eur",
+                "interval": "year",
+                "active_for_new_customers": "on",
+                "notes": "eur price",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            BillingPlanPrice.objects.filter(tier=UserPlanTier.PLUS, active_for_new_customers=True).count(),
+            2,
+        )
+
+    def test_admin_can_edit_archived_price_with_same_stripe_price_id(self):
+        admin = User.objects.create_superuser(
+            username="admin-price-edit",
+            email="admin-price-edit@example.com",
+            password="strong-pass-123",
+        )
+        price = BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_existing_eur",
+            amount=50,
+            currency="eur",
+            active_for_new_customers=False,
+        )
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse("dashboard:billing-price-edit", args=[price.pk]),
+            {
+                "tier": UserPlanTier.PLUS,
+                "stripe_price_id": "price_existing_eur",
+                "amount": "46.00",
+                "currency": "eur",
+                "interval": "year",
+                "active_for_new_customers": "on",
+                "notes": "corrected local amount",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        price.refresh_from_db()
+        self.assertEqual(price.amount, 4600)
+        self.assertTrue(price.active_for_new_customers)
+
+    def test_admin_can_activate_archived_price(self):
+        admin = User.objects.create_superuser(
+            username="admin-price-activate",
+            email="admin-price-activate@example.com",
+            password="strong-pass-123",
+        )
+        price = BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PRO,
+            stripe_price_id="price_pro_pln",
+            amount=40000,
+            currency="pln",
+            active_for_new_customers=False,
+        )
+        self.client.force_login(admin)
+
+        response = self.client.post(reverse("dashboard:billing-price-activate", args=[price.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        price.refresh_from_db()
+        self.assertTrue(price.active_for_new_customers)
+
+    @override_settings(STRIPE_PLUS_PRICE_ID="", STRIPE_PRO_PRICE_ID="", STRIPE_PLUS_PRICE_AMOUNT=4900)
+    def test_archived_price_does_not_show_fallback_amount_on_plan_page(self):
+        BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_archived",
+            amount=20000,
+            currency="pln",
+            active_for_new_customers=False,
+        )
+
+        response = self.client.get(reverse("dashboard:plan-update"), {"currency": "pln"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "49.00 PLN")
+        self.assertNotContains(response, "200.00 PLN")
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.checkout.Session.create")
+    def test_user_selecting_plus_in_eur_uses_eur_stripe_price(self, mock_checkout_create):
+        self.create_billing_profile(country="DE")
+        BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_eur",
+            amount=1900,
+            currency="eur",
+            active_for_new_customers=True,
+        )
+        BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PRO,
+            stripe_price_id="price_pro_eur",
+            amount=3900,
+            currency="eur",
+            active_for_new_customers=True,
+        )
+        mock_checkout_create.return_value = SimpleNamespace(url="https://checkout.stripe.test/eur-session")
+
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {
+                "plan_tier": UserPlanTier.PLUS,
+                "billing_currency": "eur",
+                "subscription_terms_accepted": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "https://checkout.stripe.test/eur-session")
+        _, kwargs = mock_checkout_create.call_args
+        self.assertEqual(kwargs["line_items"][0]["price"], "price_plus_eur")
+        self.assertEqual(kwargs["metadata"]["billing_country"], "DE")
+        self.assertEqual(kwargs["metadata"]["billing_currency"], "eur")
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.checkout.Session.create")
+    def test_paid_plan_requires_complete_billing_profile_before_checkout(self, mock_checkout_create):
+        BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_pln",
+            amount=4900,
+            currency="pln",
+            active_for_new_customers=True,
+        )
+
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {
+                "plan_tier": UserPlanTier.PLUS,
+                "billing_currency": "pln",
+                "subscription_terms_accepted": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:billing-profile"))
+        mock_checkout_create.assert_not_called()
+
+    def test_billing_profile_requires_vat_id_and_hides_person_choice(self):
+        response = self.client.get(reverse("dashboard:billing-profile"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "VAT ID")
+        self.assertNotContains(response, 'name="customer_type"')
+        self.assertNotContains(response, 'name="first_name"')
+        self.assertNotContains(response, 'name="last_name"')
+
+        response = self.client.post(
+            reverse("dashboard:billing-profile"),
+            {
+                "company_name": "Client Company",
+                "tax_id": "",
+                "street": "Test Street 1",
+                "postal_code": "00-001",
+                "city": "Warsaw",
+                "country": "PL",
+                "invoice_email": self.user.email,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "VAT ID is required")
+
+    def test_billing_profile_is_saved_as_company_even_if_post_is_tampered(self):
+        response = self.client.post(
+            reverse("dashboard:billing-profile"),
+            {
+                "customer_type": "person",
+                "company_name": "Client Company",
+                "tax_id": "PL5260250274",
+                "street": "Test Street 1",
+                "postal_code": "00-001",
+                "city": "Warsaw",
+                "country": "PL",
+                "invoice_email": self.user.email,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        profile = self.user.billing_profile
+        self.assertEqual(profile.customer_type, "company")
+        self.assertEqual(profile.tax_id, "PL5260250274")
+
+    def test_billing_profile_normalizes_polish_vat_id_with_country_prefix(self):
+        response = self.client.post(
+            reverse("dashboard:billing-profile"),
+            {
+                "company_name": "Client Company",
+                "tax_id": "526-025-02-74",
+                "street": "Test Street 1",
+                "postal_code": "00-001",
+                "city": "Warsaw",
+                "country": "PL",
+                "invoice_email": self.user.email,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.user.billing_profile.refresh_from_db()
+        self.assertEqual(self.user.billing_profile.tax_id, "PL5260250274")
+
+    def test_billing_profile_rejects_invalid_polish_vat_id(self):
+        response = self.client.post(
+            reverse("dashboard:billing-profile"),
+            {
+                "company_name": "Client Company",
+                "tax_id": "PL1234567890",
+                "street": "Test Street 1",
+                "postal_code": "00-001",
+                "city": "Warsaw",
+                "country": "PL",
+                "invoice_email": self.user.email,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Enter a valid Polish VAT ID")
+
+    def test_billing_profile_rejects_vat_prefix_that_does_not_match_country(self):
+        response = self.client.post(
+            reverse("dashboard:billing-profile"),
+            {
+                "company_name": "Client Company",
+                "tax_id": "DE123456789",
+                "street": "Test Street 1",
+                "postal_code": "00-001",
+                "city": "Warsaw",
+                "country": "PL",
+                "invoice_email": self.user.email,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "VAT ID country prefix must match")
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.checkout.Session.create")
+    def test_polish_billing_profile_forces_pln_checkout_even_if_eur_posted(self, mock_checkout_create):
+        self.create_billing_profile(country="PL")
+        BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_pln",
+            amount=7900,
+            currency="pln",
+            active_for_new_customers=True,
+        )
+        BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_eur",
+            amount=1900,
+            currency="eur",
+            active_for_new_customers=True,
+        )
+        mock_checkout_create.return_value = SimpleNamespace(url="https://checkout.stripe.test/pln-session")
+
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {
+                "plan_tier": UserPlanTier.PLUS,
+                "billing_currency": "eur",
+                "subscription_terms_accepted": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        _, kwargs = mock_checkout_create.call_args
+        self.assertEqual(kwargs["line_items"][0]["price"], "price_plus_pln")
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="")
+    def test_stripe_subscription_webhook_activates_paid_plan(self):
+        price = BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_webhook",
+            amount=4900,
+            currency="pln",
+        )
+        payload = {
+            "type": "customer.subscription.updated",
+            "data": {
+                "object": {
+                    "id": "sub_test_123",
+                    "customer": "cus_test_123",
+                    "status": "active",
+                    "current_period_start": 1767225600,
+                    "current_period_end": 1798761600,
+                    "cancel_at_period_end": False,
+                    "metadata": {
+                        "user_id": str(self.user.pk),
+                        "plan_tier": UserPlanTier.PLUS,
+                    },
+                    "items": {
+                        "data": [
+                            {
+                                "price": {
+                                    "id": price.stripe_price_id,
+                                }
+                            }
+                        ]
+                    },
+                }
+            },
+        }
+
+        response = self.client.post(
+            reverse("stripe-webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.plan_tier, UserPlanTier.PLUS)
+        self.assertEqual(self.user.billing_subscription.stripe_subscription_id, "sub_test_123")
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="")
+    def test_invoice_paid_webhook_records_renewal_payment(self):
+        subscription = BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+        payload = {
+            "type": "invoice.paid",
+            "data": {
+                "object": {
+                    "id": "in_renewal_123",
+                    "subscription": "sub_test_123",
+                    "customer": "cus_test_123",
+                    "payment_intent": "pi_renewal_123",
+                    "amount_paid": 20000,
+                    "currency": "pln",
+                    "status": "paid",
+                    "hosted_invoice_url": "https://invoice.stripe.test/in_renewal_123",
+                    "invoice_pdf": "https://invoice.stripe.test/in_renewal_123.pdf",
+                    "status_transitions": {
+                        "paid_at": 1798761600,
+                    },
+                }
+            },
+        }
+
+        response = self.client.post(
+            reverse("stripe-webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payment = self.user.billing_payments.get(stripe_invoice_id="in_renewal_123")
+        self.assertEqual(payment.subscription, subscription)
+        self.assertEqual(payment.amount_paid, 20000)
+        self.assertEqual(payment.currency, "pln")
+        self.assertEqual(payment.status, "paid")
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.latest_invoice_id, "in_renewal_123")
+        self.assertIsNotNone(subscription.latest_payment_at)
 
     def test_user_can_downgrade_to_basic_without_payment(self):
         self.user.plan_tier = UserPlanTier.PLUS
@@ -103,6 +788,176 @@ class DashboardPlanLimitTests(TestCase):
         self.assertEqual(response.url, reverse("dashboard:home"))
         self.user.refresh_from_db()
         self.assertEqual(self.user.plan_tier, UserPlanTier.BASIC)
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.Subscription.modify")
+    def test_paid_subscriber_selecting_basic_is_blocked_without_losing_access(self, mock_subscription_modify):
+        self.user.plan_tier = UserPlanTier.PLUS
+        self.user.plan_selected_at = timezone.now()
+        self.user.paid_plan_started_at = timezone.now()
+        self.user.save(update_fields=["plan_tier", "plan_selected_at", "paid_plan_started_at"])
+        subscription = BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {"plan_tier": UserPlanTier.BASIC},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:billing-portal"))
+        mock_subscription_modify.assert_not_called()
+        self.user.refresh_from_db()
+        subscription.refresh_from_db()
+        self.assertEqual(self.user.plan_tier, UserPlanTier.PLUS)
+        self.assertFalse(subscription.cancel_at_period_end)
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy", SITE_BASE_URL="http://testserver")
+    @patch("apps.dashboard.views.stripe.checkout.Session.create")
+    def test_plus_subscriber_selecting_pro_starts_upgrade_payment(self, mock_checkout_create):
+        self.create_billing_profile(country="PL")
+        plus_price = BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PLUS,
+            stripe_price_id="price_plus_pln",
+            amount=20000,
+            currency="pln",
+            active_for_new_customers=True,
+        )
+        BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PRO,
+            stripe_price_id="price_pro_pln",
+            amount=40000,
+            currency="pln",
+            active_for_new_customers=True,
+        )
+        self.user.plan_tier = UserPlanTier.PLUS
+        self.user.plan_selected_at = timezone.now()
+        self.user.paid_plan_started_at = timezone.now()
+        self.user.save(update_fields=["plan_tier", "plan_selected_at", "paid_plan_started_at"])
+        BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            plan_price=plus_price,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+        mock_checkout_create.return_value = SimpleNamespace(url="https://checkout.stripe.test/upgrade")
+
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {
+                "plan_tier": UserPlanTier.PRO,
+                "billing_currency": "pln",
+                "subscription_terms_accepted": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "https://checkout.stripe.test/upgrade")
+        _, kwargs = mock_checkout_create.call_args
+        self.assertEqual(kwargs["mode"], "payment")
+        self.assertEqual(kwargs["line_items"][0]["price_data"]["unit_amount"], 40000)
+        self.assertEqual(kwargs["metadata"]["upgrade_type"], "plus_to_pro")
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.checkout.Session.create")
+    def test_pro_subscriber_cannot_downgrade_to_plus_during_paid_period(self, mock_checkout_create):
+        self.user.plan_tier = UserPlanTier.PRO
+        self.user.plan_selected_at = timezone.now()
+        self.user.paid_plan_started_at = timezone.now()
+        self.user.save(update_fields=["plan_tier", "plan_selected_at", "paid_plan_started_at"])
+        BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PRO,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+
+        response = self.client.post(
+            reverse("dashboard:plan-update"),
+            {
+                "plan_tier": UserPlanTier.PLUS,
+                "billing_currency": "pln",
+                "subscription_terms_accepted": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:billing-portal"))
+        mock_checkout_create.assert_not_called()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
+    @patch("apps.dashboard.views.stripe.Subscription.modify")
+    @patch("apps.dashboard.views.stripe.Subscription.retrieve")
+    @patch("apps.dashboard.views.stripe.checkout.Session.retrieve")
+    def test_plus_to_pro_upgrade_success_updates_existing_subscription(
+        self,
+        mock_checkout_retrieve,
+        mock_subscription_retrieve,
+        mock_subscription_modify,
+    ):
+        pro_price = BillingPlanPrice.objects.create(
+            tier=UserPlanTier.PRO,
+            stripe_price_id="price_pro_pln",
+            amount=40000,
+            currency="pln",
+            active_for_new_customers=True,
+        )
+        self.user.plan_tier = UserPlanTier.PLUS
+        self.user.plan_selected_at = timezone.now()
+        self.user.paid_plan_started_at = timezone.now()
+        self.user.save(update_fields=["plan_tier", "plan_selected_at", "paid_plan_started_at"])
+        BillingSubscription.objects.create(
+            user=self.user,
+            tier=UserPlanTier.PLUS,
+            stripe_customer_id="cus_test_123",
+            stripe_subscription_id="sub_test_123",
+            status="active",
+        )
+        mock_checkout_retrieve.return_value = SimpleNamespace(
+            metadata={
+                "user_id": str(self.user.pk),
+                "plan_tier": UserPlanTier.PRO,
+                "upgrade_type": "plus_to_pro",
+                "billing_plan_price_id": str(pro_price.pk),
+                "stripe_subscription_id": "sub_test_123",
+            },
+            payment_status="paid",
+        )
+        mock_subscription_retrieve.return_value = SimpleNamespace(
+            items=SimpleNamespace(data=[SimpleNamespace(id="si_test_123")])
+        )
+        mock_subscription_modify.return_value = SimpleNamespace(
+            id="sub_test_123",
+            customer="cus_test_123",
+            status="active",
+            current_period_start=1767225600,
+            current_period_end=1798761600,
+            cancel_at_period_end=False,
+            canceled_at=None,
+            latest_invoice="in_test_123",
+            metadata={"user_id": str(self.user.pk), "plan_tier": UserPlanTier.PRO},
+            items=SimpleNamespace(data=[{"price": {"id": pro_price.stripe_price_id}}]),
+        )
+
+        response = self.client.get(reverse("dashboard:plan-checkout-success"), {"session_id": "cs_upgrade_123"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard:home"))
+        mock_subscription_modify.assert_called_once()
+        _, kwargs = mock_subscription_modify.call_args
+        self.assertEqual(kwargs["items"], [{"id": "si_test_123", "price": pro_price.stripe_price_id}])
+        self.assertEqual(kwargs["billing_cycle_anchor"], "now")
+        self.assertEqual(kwargs["proration_behavior"], "none")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.plan_tier, UserPlanTier.PRO)
 
     @override_settings(STRIPE_SECRET_KEY="sk_test_dummy")
     @patch("apps.dashboard.views.stripe.checkout.Session.retrieve")
