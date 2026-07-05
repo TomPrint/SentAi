@@ -39,7 +39,11 @@
             input[type="time"],
             select,
             textarea {
-                @apply w-full rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] placeholder-[#d9d9d9] outline-none transition focus:border-[#5ca197]/60 focus:ring-1 focus:ring-[#5ca197]/20;
+                @apply w-full rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] outline-none transition focus:border-[#5ca197]/60 focus:ring-1 focus:ring-[#5ca197]/20;
+                color: #353535;
+            }
+            input::placeholder, textarea::placeholder {
+                color: #d9d9d9;
             }
 
             input[type="date"],

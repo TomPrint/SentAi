@@ -100,7 +100,7 @@ LANGUAGE_BUTTON_HELP = {
 class OrganizationForm(forms.ModelForm):
     # Języki faktycznie wspierane przez model i ustawienia aplikacji.
     AVAILABLE_LANGUAGES = [code for code, _label in FEED_LANGUAGE_CHOICES]
-    website_url = forms.CharField(required=False, widget=forms.TextInput())
+    website_url = forms.CharField(required=True, widget=forms.TextInput())
     social_profiles_text = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 4}))
     featured_entry_type = forms.CharField(required=False, widget=forms.HiddenInput(), initial=EntryType.FAQ)
     featured_entry_summary = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
@@ -328,16 +328,16 @@ class OrganizationForm(forms.ModelForm):
 
     def _setup_default_widget_styles(self) -> None:
         input_css = (
-            "w-full rounded border border-white/10 bg-white/5 px-3 py-2 "
-            "font-mono text-sm text-white placeholder-slate-500 transition "
-            "hover:border-white/20 focus:border-[#00d4aa] focus:outline-none "
-            "focus:ring-2 focus:ring-[#00d4aa]/20"
+            "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 "
+            "text-sm text-slate-800 placeholder-slate-400 transition "
+            "hover:border-slate-300 focus:border-slate-400 focus:outline-none "
+            "focus:ring-2 focus:ring-slate-800/10"
         )
         textarea_css = (
-            "w-full rounded border border-white/10 bg-white/5 px-3 py-2 "
-            "font-mono text-sm text-white placeholder-slate-500 transition "
-            "hover:border-white/20 focus:border-[#00d4aa] focus:outline-none "
-            "focus:ring-2 focus:ring-[#00d4aa]/20"
+            "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 "
+            "text-sm text-slate-800 placeholder-slate-400 transition "
+            "hover:border-slate-300 focus:border-slate-400 focus:outline-none "
+            "focus:ring-2 focus:ring-slate-800/10"
         )
 
         for field_name, field in self.fields.items():
@@ -367,7 +367,10 @@ class OrganizationForm(forms.ModelForm):
     def clean_website_url(self):
         website_url = (self.cleaned_data.get("website_url") or "").strip()
         if not website_url:
-            return ""
+            raise forms.ValidationError(
+                "Adres strony WWW jest wymagany." if self.ui_language == "pl"
+                else "Website URL is required."
+            )
 
         parsed_url = urlsplit(website_url)
         normalized_url = website_url if parsed_url.scheme else f"https://{website_url}"
@@ -453,21 +456,6 @@ class OrganizationForm(forms.ModelForm):
                 else "Default feed language must be included in selected feed languages."
             )
         
-        # Waliduj że są wypełnione opisy dla wybranych języków
-        for lang_code in content_languages:
-            short_field = f"short_description_{lang_code}"
-            long_field = f"long_description_{lang_code}"
-            
-            short_val = self.data.get(short_field, "").strip()
-            long_val = self.data.get(long_field, "").strip()
-            
-            if not short_val or not long_val:
-                lang_name = self.language_labels.get(lang_code, lang_code)
-                raise forms.ValidationError(
-                    f"Krótki i pełny opis dla {lang_name} muszą być wypełnione." if self.ui_language == "pl"
-                    else f"Both short and long descriptions for {lang_name} must be filled."
-                )
-
         self._parse_products_by_language(content_languages)
 
         social_raw = (cleaned_data.get("social_profiles_text") or "").strip()
@@ -585,22 +573,23 @@ class OrganizationForm(forms.ModelForm):
             )
 
     def _parse_products_text(self, raw_value: str) -> list[dict[str, str]]:
-        lines = [line.strip() for line in raw_value.splitlines() if line.strip()]
-        parsed: list[dict[str, str]] = []
+        # Support both comma-separated (new) and pipe-per-line (legacy) formats
+        # If input contains '|' treat as legacy pipe format, otherwise comma-separated
+        if '|' in raw_value:
+            lines = [line.strip() for line in raw_value.splitlines() if line.strip()]
+        else:
+            # Comma-separated: split by comma, each item is just a name
+            lines = [item.strip() for item in raw_value.replace('\n', ',').split(',') if item.strip()]
+            return [{"name": name[:255], "description": "", "url": ""} for name in lines]
 
+        parsed: list[dict[str, str]] = []
         for line in lines:
             parts = [part.strip() for part in line.split("|")]
             if not parts or not parts[0]:
-                raise forms.ValidationError(
-                    "Każdy produkt musi mieć nazwę przed separatorem |."
-                    if self.ui_language == "pl"
-                    else "Each product must include a name before the | separator."
-                )
-
+                continue
             name = parts[0][:255]
             description = parts[1] if len(parts) > 1 else ""
             url_raw = parts[2] if len(parts) > 2 else ""
-
             normalized_url = ""
             if url_raw:
                 normalized_url = self._normalize_optional_url(
@@ -608,15 +597,7 @@ class OrganizationForm(forms.ModelForm):
                     invalid_message_pl=f"Niepoprawny link produktu: {url_raw}",
                     invalid_message_en=f"Invalid product URL: {url_raw}",
                 )
-
-            parsed.append(
-                {
-                    "name": name,
-                    "description": description,
-                    "url": normalized_url,
-                }
-            )
-
+            parsed.append({"name": name, "description": description, "url": normalized_url})
         return parsed
 
     def _parse_products_by_language(self, selected_languages: list[str]) -> dict[str, list[dict[str, str]]]:
