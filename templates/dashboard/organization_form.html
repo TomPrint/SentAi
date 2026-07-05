@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<section class="relative overflow-visible rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
+<section class="relative overflow-visible rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm lg:p-8">
     <div class="mb-7 flex items-start justify-between gap-4">
         <div>
             <span class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-widest text-slate-500">
@@ -41,18 +41,18 @@
         {% endif %}
         <div class="space-y-5">
             <details class="group rounded-xl border border-slate-200 bg-white shadow-sm" {% if object %}open{% endif %}>
-                <summary class="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
-                    <div class="flex items-center gap-3">
+                <summary class="flex cursor-pointer list-none items-center gap-3 px-4 sm:px-5 py-4">
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
                         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5ca197]/15 font-mono text-[11px] font-bold text-[#5ca197]">1</div>
                         <h3 class="text-sm font-semibold text-slate-800">
                             {% if request.LANGUAGE_CODE == 'pl' %}Dane podstawowe{% else %}Basic details{% endif %}
                         </h3>
+                        <div class="hidden sm:block h-4 w-px shrink-0 bg-slate-200"></div>
+                        <p class="hidden sm:block text-[11px] text-slate-400 leading-snug">
+                            {% if request.LANGUAGE_CODE == 'pl' %}Nazwa, adres WWW i dane kontaktowe — wymagane do identyfikacji firmy w systemie.{% else %}Company name, website and contact info — required to identify your company.{% endif %}
+                        </p>
                     </div>
-                    <div class="h-4 w-px shrink-0 bg-slate-200"></div>
-                    <p class="text-[11px] text-slate-400 leading-snug">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Nazwa, adres WWW i dane kontaktowe — wymagane do identyfikacji firmy w systemie.{% else %}Company name, website and contact info — required to identify your company.{% endif %}
-                    </p>
-                    <span class="ml-auto shrink-0 text-slate-300 transition group-open:rotate-180">&#8964;</span>
+                    <span class="ml-2 shrink-0 text-slate-300 transition group-open:rotate-180">&#8964;</span>
                 </summary>
                 <div class="border-t border-slate-100 px-5 pb-5 pt-4">
                 <div class="grid gap-4 md:grid-cols-2">
@@ -124,30 +124,30 @@
             </details>
 
             <details class="group rounded-xl border border-slate-200 bg-white shadow-sm">
-                <summary class="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
-                    <div class="flex items-center gap-3">
+                <summary class="flex cursor-pointer list-none items-center gap-3 px-4 sm:px-5 py-4">
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
                         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5ca197]/15 font-mono text-[11px] font-bold text-[#5ca197]">2</div>
                         <h3 class="text-sm font-semibold text-slate-800">
                             {% if request.LANGUAGE_CODE == 'pl' %}Języki feedu i opisy{% else %}Feed languages and descriptions{% endif %}
                         </h3>
+                        <div class="hidden sm:block h-4 w-px shrink-0 bg-slate-200"></div>
+                        <p class="hidden sm:block text-[11px] text-slate-400 leading-snug">
+                            {% if request.LANGUAGE_CODE == 'pl' %}Opisy firmy w językach, w których chcesz pojawiać się w wynikach AI.{% else %}Company descriptions in the languages you want to appear in AI search results.{% endif %}
+                        </p>
                     </div>
-                    <div class="h-4 w-px shrink-0 bg-slate-200"></div>
-                    <p class="text-[11px] text-slate-400 leading-snug">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Opisy firmy w językach, w których chcesz pojawiać się w wynikach AI.{% else %}Company descriptions in the languages you want to appear in AI search results.{% endif %}
-                    </p>
-                    <span class="ml-auto shrink-0 text-slate-300 transition group-open:rotate-180">&#8964;</span>
+                    <span class="ml-2 shrink-0 text-slate-300 transition group-open:rotate-180">&#8964;</span>
                 </summary>
                 <div class="border-t border-slate-100 px-5 pb-5 pt-4 space-y-4">
 
                     <!-- Ustawienia języków -->
                     <div class="flex flex-wrap items-end gap-3">
-                        <div class="w-48 shrink-0 space-y-1.5">
+                        <div class="w-full sm:w-48 shrink-0 space-y-1.5">
                             <span class="block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ form.primary_language.label }}</span>
                             <div class="hidden">{{ form.primary_language }}</div>
                             <div id="primary-language-picker" class="relative"></div>
                             {% if form.primary_language.errors %}<small class="block text-[11px] font-medium text-rose-500">{{ form.primary_language.errors|striptags }}</small>{% endif %}
                         </div>
-                        <div class="flex-1 min-w-[160px] space-y-1.5">
+                        <div class="w-full sm:flex-1 sm:min-w-[160px] space-y-1.5">
                             <span class="block text-xs font-semibold uppercase tracking-wide text-slate-500">
                                 {% if request.LANGUAGE_CODE == 'pl' %}Dodaj język{% else %}Add language{% endif %}
                             </span>
@@ -168,18 +168,18 @@
             </details>
 
             <details class="group rounded-xl border border-slate-200 bg-white shadow-sm">
-                <summary class="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
-                    <div class="flex items-center gap-3">
+                <summary class="flex cursor-pointer list-none items-center gap-3 px-4 sm:px-5 py-4">
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
                         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5ca197]/15 font-mono text-[11px] font-bold text-[#5ca197]">3</div>
                         <h3 class="text-sm font-semibold text-slate-800">
                             {% if request.LANGUAGE_CODE == 'pl' %}Materiał wiedzy - FAQ{% else %}Knowledge content - FAQ{% endif %}
                         </h3>
+                        <div class="hidden sm:block h-4 w-px shrink-0 bg-slate-200"></div>
+                        <p class="hidden sm:block text-[11px] text-slate-400 leading-snug">
+                            {% if request.LANGUAGE_CODE == 'pl' %}Pytania i odpowiedzi o firmie — AI cytuje je w odpowiedziach na zapytania użytkowników.{% else %}Q&amp;A about your company — AI cites this when answering user queries.{% endif %}
+                        </p>
                     </div>
-                    <div class="h-4 w-px shrink-0 bg-slate-200"></div>
-                    <p class="text-[11px] text-slate-400 leading-snug">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Pytania i odpowiedzi o firmie — AI cytuje je w odpowiedziach na zapytania użytkowników.{% else %}Q&amp;A about your company — AI cites this when answering user queries.{% endif %}
-                    </p>
-                    <span class="ml-auto shrink-0 text-slate-300 transition group-open:rotate-180">&#8964;</span>
+                    <span class="ml-2 shrink-0 text-slate-300 transition group-open:rotate-180">&#8964;</span>
                 </summary>
                 <div class="border-t border-slate-100 px-5 pb-5 pt-4">
                 <div class="grid gap-4 md:grid-cols-2">
@@ -204,18 +204,18 @@
             </details>
 
             <details class="group rounded-xl border border-slate-200 bg-white shadow-sm">
-                <summary class="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
-                    <div class="flex items-center gap-3">
+                <summary class="flex cursor-pointer list-none items-center gap-3 px-4 sm:px-5 py-4">
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
                         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5ca197]/15 font-mono text-[11px] font-bold text-[#5ca197]">4</div>
                         <h3 class="text-sm font-semibold text-slate-800">
                             {% if request.LANGUAGE_CODE == 'pl' %}Media społecznościowe{% else %}Social media{% endif %}
                         </h3>
+                        <div class="hidden sm:block h-4 w-px shrink-0 bg-slate-200"></div>
+                        <p class="hidden sm:block text-[11px] text-slate-400 leading-snug">
+                            {% if request.LANGUAGE_CODE == 'pl' %}Linki do profili — pomagają AI powiązać firmę z jej obecnością w sieci.{% else %}Profile links — help AI connect your company to its online presence.{% endif %}
+                        </p>
                     </div>
-                    <div class="h-4 w-px shrink-0 bg-slate-200"></div>
-                    <p class="text-[11px] text-slate-400 leading-snug">
-                        {% if request.LANGUAGE_CODE == 'pl' %}Linki do profili — pomagają AI powiązać firmę z jej obecnością w sieci.{% else %}Profile links — help AI connect your company to its online presence.{% endif %}
-                    </p>
-                    <span class="ml-auto shrink-0 text-slate-300 transition group-open:rotate-180">&#8964;</span>
+                    <span class="ml-2 shrink-0 text-slate-300 transition group-open:rotate-180">&#8964;</span>
                 </summary>
                 <div class="border-t border-slate-100 px-5 pb-5 pt-4">
                 <label class="block space-y-1.5">
