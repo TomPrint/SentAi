@@ -51,6 +51,7 @@ from .views import (
     StripePaymentInvoiceCreateView,
     BillingCustomerInvoicesDetailView,
 )
+from apps.notifications.views import AdminNotificationCloseView, AdminNotificationListView, CustomerNotificationCloseView, CustomerNotificationListView
 
 
 app_name = "dashboard"
@@ -62,6 +63,8 @@ urlpatterns = [
     path("plan/manual/confirm/", ManualPlanConfirmView.as_view(), name="manual-plan-confirm"),
     path("plan/invoices/", CustomerInvoiceListView.as_view(), name="customer-invoices"),
     path("plan/invoices/<int:pk>/download/", CustomerInvoiceDownloadView.as_view(), name="customer-invoice-download"),
+    path("plan/notifications/", CustomerNotificationListView.as_view(), name="customer-notifications"),
+    path("plan/notifications/<int:pk>/close/", CustomerNotificationCloseView.as_view(), name="customer-notification-close"),
     path("plan/billing-portal/", BillingPortalView.as_view(), name="billing-portal"),
     path("plan/payment-method/", StripeCustomerPortalView.as_view(), name="stripe-customer-portal"),
     path("plan/subscription/cancel/", BillingSubscriptionCancelView.as_view(), name="billing-subscription-cancel"),
@@ -74,6 +77,8 @@ urlpatterns = [
     path("organizations/<int:pk>/review/", OrganizationReviewView.as_view(), name="organization-review"),
     path("organizations/<int:pk>/verify/", OrganizationVerifyView.as_view(), name="organization-verify"),
     path("clients/", ClientListView.as_view(), name="client-list"),
+    path("notifications/", AdminNotificationListView.as_view(), name="notifications"),
+    path("notifications/<int:pk>/close/", AdminNotificationCloseView.as_view(), name="notification-close"),
     path("billing/prices/", BillingPriceManagementView.as_view(), name="billing-price-management"),
     path("billing/prices/<int:pk>/edit/", BillingPriceUpdateView.as_view(), name="billing-price-edit"),
     path("billing/prices/<int:pk>/activate/", BillingPriceActivateView.as_view(), name="billing-price-activate"),

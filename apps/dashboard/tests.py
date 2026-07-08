@@ -15,6 +15,7 @@ from django.utils.translation import override
 from apps.accounts.models import AccountType, UserPlanTier
 from apps.billing.models import BillingInvoice, BillingPayment, BillingPlanPrice, BillingProfile, BillingSubscription, ManualPlanOrder, ManualPlanOrderStatus
 from apps.companies.models import Organization, VerificationStatus
+from apps.notifications.models import AdminNotification, CustomerNotification, NotificationCategory, NotificationSeverity
 from apps.sales.models import ProspectActivity, ProspectClient, SellerSettlement
 
 
@@ -75,6 +76,53 @@ class BillingInvoiceTrackingTests(TestCase):
         self.assertEqual(self.payment.invoice_sent_at.isoformat(), "2026-06-28")
         self.assertEqual(self.payment.invoice_number, "FV/2026/001")
 
+    def test_admin_notification_center_lists_and_closes_notifications(self):
+        page = self.client.get(reverse("dashboard:notifications"))
+
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "New customer account")
+        notification = AdminNotification.objects.filter(closed_at__isnull=True).first()
+
+        response = self.client.post(reverse("dashboard:notification-close", args=[notification.pk]))
+
+        self.assertRedirects(response, reverse("dashboard:notifications"))
+        notification.refresh_from_db()
+        self.assertIsNotNone(notification.closed_at)
+        self.assertEqual(notification.closed_by, self.admin)
+
+    def test_notification_scan_creates_invoice_needed_alert(self):
+        self.payment.status = "paid"
+        self.payment.paid_at = timezone.now()
+        self.payment.save(update_fields=["status", "paid_at", "updated_at"])
+
+        page = self.client.get(reverse("dashboard:notifications"), {"q": self.customer.email})
+
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Stripe payment needs invoice")
+        self.assertTrue(AdminNotification.objects.filter(reference_key=f"payment:{self.payment.pk}:invoice-needed").exists())
+
+    def test_admin_notifications_can_filter_by_type(self):
+        AdminNotification.objects.create(
+            title="Manual alert",
+            message="Manual alert message",
+            category=NotificationCategory.MANUAL_PLAN,
+            severity=NotificationSeverity.WARNING,
+            customer=self.customer,
+        )
+        AdminNotification.objects.create(
+            title="Invoice alert",
+            message="Invoice alert message",
+            category=NotificationCategory.INVOICE,
+            severity=NotificationSeverity.WARNING,
+            customer=self.customer,
+        )
+
+        response = self.client.get(reverse("dashboard:notifications"), {"show": "all", "type": NotificationCategory.INVOICE})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invoice alert")
+        self.assertNotContains(response, "Manual alert")
+
     def test_sent_invoice_requires_date_and_number(self):
         response = self.client.post(
             reverse("dashboard:billing-payment-invoice-update", args=[self.payment.pk]),
@@ -100,6 +148,60 @@ class BillingInvoiceTrackingTests(TestCase):
         self.assertContains(page, "FV/2026/002")
         self.assertEqual(download.status_code, 200)
         self.assertEqual(b"".join(download.streaming_content), b"%PDF-1.4 customer invoice")
+
+    def test_customer_notification_center_shows_welcome_and_invoice_notice(self):
+        invoice = BillingInvoice.objects.create(
+            user=self.customer,
+            issued_at="2026-07-08",
+            invoice_number="FV/CUSTOMER/001",
+            document=SimpleUploadedFile("customer-notice.pdf", b"%PDF-1.4 customer notice", content_type="application/pdf"),
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.get(reverse("dashboard:customer-notifications"), {"show": "all", "type": NotificationCategory.INVOICE})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "New invoice available")
+        self.assertContains(response, invoice.invoice_number)
+        self.assertTrue(CustomerNotification.objects.filter(user=self.customer, reference_key=f"customer:{self.customer.pk}:welcome").exists())
+
+    def test_customer_notifications_use_polish_content_when_language_is_polish(self):
+        self.client.force_login(self.customer)
+
+        with override("pl"):
+            response = self.client.get(reverse("dashboard:customer-notifications"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Uzupełnij dane do faktury")
+        self.assertContains(response, "Wybierz plan")
+        self.assertNotContains(response, "Complete billing details")
+        self.assertNotContains(response, "Choose a plan")
+
+    def test_customer_notifications_scan_renewal_reminders(self):
+        BillingSubscription.objects.create(
+            user=self.customer,
+            tier=UserPlanTier.PRO,
+            status="active",
+            current_period_end=timezone.now() + timedelta(days=10),
+        )
+        ManualPlanOrder.objects.create(
+            user=self.customer,
+            amount=48000,
+            currency="pln",
+            status=ManualPlanOrderStatus.PAID,
+            payment_reference="PRO-RENEW-customer",
+            payment_due_at=timezone.now() - timedelta(days=350),
+            access_until=timezone.now() + timedelta(days=10),
+            paid_at=timezone.now() - timedelta(days=350),
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.get(reverse("dashboard:customer-notifications"), {"show": "all"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Subscription renews soon")
+        self.assertContains(response, "Pro Manual ends in 30 days")
+        self.assertContains(response, "Pro Manual ends in 14 days")
 
     def test_customer_cannot_download_another_customers_invoice(self):
         invoice = BillingInvoice.objects.create(

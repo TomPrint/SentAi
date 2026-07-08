@@ -68,6 +68,9 @@ def create_manual_plan_order(user, currency):
         access_until=now + timedelta(days=365),
     )
     activate_paid_plan(user, UserPlanTier.PRO)
+    from apps.notifications.services import notify_manual_order_created
+
+    notify_manual_order_created(order)
     return order
 
 
@@ -444,6 +447,9 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
                 return redirect("dashboard:billing-portal")
 
             downgrade_to_basic(user)
+            from apps.notifications.services import notify_plan_selected
+
+            notify_plan_selected(user, UserPlanTier.BASIC)
             if self.request.LANGUAGE_CODE == "pl":
                 messages.success(self.request, "Plan został zaktualizowany.")
             else:
@@ -722,6 +728,9 @@ class PlanCheckoutSuccessView(LoginRequiredMixin, View):
                 request.user.plan_selected_at = timezone.now()
             request.user.save(update_fields=["plan_tier", "paid_plan_started_at", "plan_selected_at"])
             Subscription.objects.filter(organization__owner=request.user).update(tier=selected_tier)
+            from apps.notifications.services import notify_plan_selected
+
+            notify_plan_selected(request.user, selected_tier)
 
         if request.LANGUAGE_CODE == "pl":
             messages.success(request, "Płatność zakończona sukcesem. Plan został aktywowany.")
@@ -1350,6 +1359,10 @@ class ManualPlanMarkPaidView(AdminRequiredMixin, View):
         order.status = ManualPlanOrderStatus.PAID
         order.paid_at = timezone.now()
         order.save(update_fields=["status", "paid_at", "updated_at"])
+        from apps.notifications.services import close_manual_order_overdue, notify_invoice_needed_for_manual_order
+
+        close_manual_order_overdue(order, closed_by=request.user)
+        notify_invoice_needed_for_manual_order(order)
         messages.success(request, f"Potwierdzono płatność {order.payment_reference}.")
         return redirect("dashboard:billing-overview")
 
@@ -1366,6 +1379,9 @@ class ManualPlanDisableView(AdminRequiredMixin, View):
         order.disabled_by = request.user
         order.save(update_fields=["status", "disabled_at", "disabled_by", "updated_at"])
         downgrade_to_basic(order.user)
+        from apps.notifications.services import close_manual_order_overdue
+
+        close_manual_order_overdue(order, closed_by=request.user)
         messages.success(request, f"Wyłączono plan {order.payment_reference}.")
         return redirect("dashboard:billing-overview")
 
@@ -1380,6 +1396,9 @@ class ManualPlanInvoiceCreateView(AdminRequiredMixin, View):
             invoice.manual_order = order
             invoice.sent = True
             invoice.save()
+            from apps.notifications.services import close_invoice_needed_for_manual_order
+
+            close_invoice_needed_for_manual_order(order, closed_by=request.user)
             messages.success(request, "Faktura dla Pro Manual została zapisana.")
         else:
             messages.error(request, "Nie udało się zapisać faktury: " + " ".join(form.errors.as_text().splitlines()))
@@ -1397,6 +1416,9 @@ class StripePaymentInvoiceCreateView(AdminRequiredMixin, View):
             invoice.payment = payment
             invoice.sent = True
             invoice.save()
+            from apps.notifications.services import close_invoice_needed_for_payment
+
+            close_invoice_needed_for_payment(payment, closed_by=request.user)
             messages.success(request, "Faktura dla płatności Stripe została zapisana.")
         else:
             messages.error(request, "Nie udało się zapisać faktury: " + " ".join(form.errors.as_text().splitlines()))
@@ -1416,6 +1438,11 @@ class BillingInvoiceCreateView(AdminRequiredMixin, View):
             invoice.subscription = subscription
             invoice.sent = True
             invoice.save()
+            latest_payment = subscription.payments.filter(status="paid").first()
+            if latest_payment:
+                from apps.notifications.services import close_invoice_needed_for_payment
+
+                close_invoice_needed_for_payment(latest_payment, closed_by=request.user)
             messages.success(request, "Invoice has been added.")
         else:
             messages.error(request, "Invoice could not be added: " + " ".join(form.errors.as_text().splitlines()))
@@ -1428,6 +1455,10 @@ class BillingPaymentInvoiceUpdateView(AdminRequiredMixin, UpdateView):
     http_method_names = ["post"]
 
     def form_valid(self, form):
+        if form.instance.invoice_issued or form.instance.invoice_document:
+            from apps.notifications.services import close_invoice_needed_for_payment
+
+            close_invoice_needed_for_payment(form.instance, closed_by=self.request.user)
         messages.success(self.request, "Invoice information has been updated.")
         return super().form_valid(form)
 
