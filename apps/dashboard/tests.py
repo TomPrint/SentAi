@@ -156,6 +156,48 @@ class BillingInvoiceTrackingTests(TestCase):
         self.assertTrue(invoice.sent)
         self.assertEqual(invoice.sent_at.isoformat(), "2026-06-28")
 
+    def test_billing_overview_and_invoice_admin_accept_sorting_and_search(self):
+        now = timezone.now()
+        subscription = BillingSubscription.objects.create(
+            user=self.customer,
+            tier=UserPlanTier.PRO,
+            status="active",
+            current_period_end=now + timedelta(days=365),
+        )
+        BillingPayment.objects.create(
+            user=self.customer,
+            subscription=subscription,
+            stripe_invoice_id="in_sortable_subscription",
+            amount_paid=40000,
+            currency="pln",
+            status="paid",
+            paid_at=now,
+        )
+        ManualPlanOrder.objects.create(
+            user=self.customer,
+            amount=48000,
+            currency="pln",
+            status=ManualPlanOrderStatus.PAID,
+            payment_reference="PRO-SORT-client",
+            payment_due_at=now + timedelta(days=14),
+            access_until=now + timedelta(days=365),
+            paid_at=now,
+        )
+
+        overview = self.client.get(
+            reverse("dashboard:billing-overview"),
+            {"manual_sort": "customer", "subscription_sort": "-payment", "q": "PRO-SORT"},
+        )
+        invoices = self.client.get(reverse("dashboard:billing-invoices-admin"), {"sort": "-invoice", "q": self.customer.email})
+
+        self.assertEqual(overview.status_code, 200)
+        self.assertContains(overview, "manual_sort")
+        self.assertContains(overview, "subscription_sort")
+        self.assertContains(overview, "PRO-SORT")
+        self.assertEqual(invoices.status_code, 200)
+        self.assertContains(invoices, "sort")
+        self.assertContains(invoices, self.customer.email)
+
 
 class DashboardPlanLimitTests(TestCase):
     def setUp(self):
@@ -1603,6 +1645,29 @@ class SellerManagementTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.seller.username)
+
+    def test_admin_client_list_shows_last_invoice_date(self):
+        client_user = User.objects.create_user(
+            username="client-with-last-invoice",
+            email="client-with-last-invoice@example.com",
+            password="strong-pass-123",
+            account_type=AccountType.CLIENT,
+        )
+        BillingInvoice.objects.create(
+            user=client_user,
+            issued_at="2026-07-05",
+            sent=True,
+            sent_at="2026-07-08",
+            invoice_number="FV/LAST/001",
+            document=SimpleUploadedFile("last-invoice.pdf", b"%PDF-1.4 last", content_type="application/pdf"),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("dashboard:client-list"), {"sort": "-invoice"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Last invoice")
+        self.assertContains(response, "2026-07-08")
 
     def test_admin_client_list_shows_verified_badge_when_client_has_verified_organization(self):
         client_user = User.objects.create_user(

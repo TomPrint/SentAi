@@ -10,6 +10,30 @@
 </section>
 
 <section class="rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
+    <div class="mb-4 space-y-3">
+        <form class="flex flex-col gap-2 sm:flex-row" method="get">
+            <input type="hidden" name="sort" value="{{ current_sort }}">
+            <input
+                class="min-h-10 min-w-0 flex-1 rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] placeholder-[#353535]/30 outline-none transition focus:border-[#5ca197] focus:ring-1 focus:ring-[#5ca197]/20"
+                type="search"
+                name="q"
+                value="{{ search_query }}"
+                placeholder="{% if request.LANGUAGE_CODE == 'pl' %}Szukaj po kliencie, planie, kwocie lub numerze faktury{% else %}Search by customer, plan, amount or invoice number{% endif %}"
+            >
+            <button class="inline-flex min-h-10 items-center justify-center rounded bg-[#284b63] px-4 font-mono text-sm font-semibold text-white transition hover:bg-[#1e3a4f]" type="submit">{% if request.LANGUAGE_CODE == 'pl' %}Szukaj{% else %}Search{% endif %}</button>
+            {% if search_query %}
+                <a class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 font-mono text-sm font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'dashboard:billing-invoices-admin' %}?sort={{ current_sort }}">X</a>
+            {% endif %}
+        </form>
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">{% if request.LANGUAGE_CODE == 'pl' %}Sortuj{% else %}Sort{% endif %}</span>
+            <a class="rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-[10px] text-[#353535]/65 hover:border-[#5ca197] hover:text-[#5ca197]" href="{{ sort_urls.customer }}">{% if request.LANGUAGE_CODE == 'pl' %}Klient{% else %}Customer{% endif %}</a>
+            <a class="rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-[10px] text-[#353535]/65 hover:border-[#5ca197] hover:text-[#5ca197]" href="{{ sort_urls.plan }}">Plan</a>
+            <a class="rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-[10px] text-[#353535]/65 hover:border-[#5ca197] hover:text-[#5ca197]" href="{{ sort_urls.amount }}">{% if request.LANGUAGE_CODE == 'pl' %}Kwota{% else %}Amount{% endif %}</a>
+            <a class="rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-[10px] text-[#353535]/65 hover:border-[#5ca197] hover:text-[#5ca197]" href="{{ sort_urls.paid }}">{% if request.LANGUAGE_CODE == 'pl' %}Data p&#322;atno&#347;ci{% else %}Paid at{% endif %}</a>
+            <a class="rounded border border-[#d9d9d9] bg-white px-3 py-1.5 font-mono text-[10px] text-[#353535]/65 hover:border-[#5ca197] hover:text-[#5ca197]" href="{{ sort_urls.invoice }}">{% if request.LANGUAGE_CODE == 'pl' %}Faktura{% else %}Invoice{% endif %}</a>
+        </div>
+    </div>
     <div class="space-y-3">
         {% for row in invoice_rows %}
             <article class="rounded-lg border {% if row.invoice %}border-[#d9d9d9]{% else %}border-rose-300{% endif %} bg-[#f8fafa] p-4">

@@ -1091,7 +1091,12 @@ class BillingOverviewView(AdminRequiredMixin, TemplateView):
     template_name = "dashboard/billing_overview.html"
 
     def get_context_data(self, **kwargs):
+        from urllib.parse import urlencode
+
         context = super().get_context_data(**kwargs)
+        manual_sort = self.request.GET.get("manual_sort", "-payment_due")
+        subscription_sort = self.request.GET.get("subscription_sort", "customer")
+        search_query = self.request.GET.get("q", "").strip()
         payments = BillingPayment.objects.select_related("user", "subscription")
         subscriptions = BillingSubscription.objects.select_related("user", "plan_price").prefetch_related("payments__invoices")
         manual_orders = list(ManualPlanOrder.objects.select_related("user", "disabled_by").prefetch_related("invoices"))
@@ -1112,6 +1117,91 @@ class BillingOverviewView(AdminRequiredMixin, TemplateView):
             )
             subscription_rows.append(subscription)
 
+        for order in manual_orders:
+            order.latest_manual_invoice = next(iter(order.invoices.all()), None)
+        all_manual_orders = list(manual_orders)
+
+        if search_query:
+            needle = search_query.lower()
+
+            def invoice_text(invoice):
+                return invoice.invoice_number.lower() if invoice else ""
+
+            manual_orders = [
+                order for order in manual_orders
+                if needle in " ".join([
+                    order.user.email or "",
+                    order.payment_reference or "",
+                    order.status or "",
+                    order.currency or "",
+                    order.formatted_amount(),
+                    invoice_text(order.latest_manual_invoice),
+                    "Pro Manual",
+                ]).lower()
+            ]
+            subscription_rows = [
+                subscription for subscription in subscription_rows
+                if needle in " ".join([
+                    subscription.user.email or "",
+                    subscription.get_tier_display(),
+                    subscription.status or "",
+                    subscription.current_public_price_label or "",
+                    invoice_text(subscription.latest_manual_invoice),
+                ]).lower()
+            ]
+
+        def none_safe(value):
+            return value is None, value
+
+        def invoice_sort_value(invoice):
+            return (
+                not bool(invoice),
+                invoice.sent_at or invoice.issued_at if invoice else date.min,
+                invoice.invoice_number if invoice else "",
+            )
+
+        manual_sort_map = {
+            "customer": lambda order: (order.user.email or "").lower(),
+            "-customer": lambda order: (order.user.email or "").lower(),
+            "amount": lambda order: order.amount,
+            "-amount": lambda order: order.amount,
+            "status": lambda order: order.status,
+            "-status": lambda order: order.status,
+            "payment_due": lambda order: none_safe(order.payment_due_at),
+            "-payment_due": lambda order: none_safe(order.payment_due_at),
+            "access": lambda order: none_safe(order.access_until),
+            "-access": lambda order: none_safe(order.access_until),
+            "invoice": lambda order: invoice_sort_value(order.latest_manual_invoice),
+            "-invoice": lambda order: invoice_sort_value(order.latest_manual_invoice),
+        }
+        subscription_sort_map = {
+            "customer": lambda sub: (sub.user.email or "").lower(),
+            "-customer": lambda sub: (sub.user.email or "").lower(),
+            "plan": lambda sub: sub.tier,
+            "-plan": lambda sub: sub.tier,
+            "status": lambda sub: sub.status,
+            "-status": lambda sub: sub.status,
+            "price": lambda sub: sub.plan_price.amount if sub.plan_price else 0,
+            "-price": lambda sub: sub.plan_price.amount if sub.plan_price else 0,
+            "renewal": lambda sub: none_safe(sub.current_period_end),
+            "-renewal": lambda sub: none_safe(sub.current_period_end),
+            "payment": lambda sub: none_safe(sub.latest_payment_at),
+            "-payment": lambda sub: none_safe(sub.latest_payment_at),
+            "invoice": lambda sub: invoice_sort_value(sub.latest_manual_invoice),
+            "-invoice": lambda sub: invoice_sort_value(sub.latest_manual_invoice),
+        }
+        if manual_sort not in manual_sort_map:
+            manual_sort = "-payment_due"
+        if subscription_sort not in subscription_sort_map:
+            subscription_sort = "customer"
+        manual_orders = sorted(manual_orders, key=manual_sort_map[manual_sort], reverse=manual_sort.startswith("-"))
+        subscription_rows = sorted(subscription_rows, key=subscription_sort_map[subscription_sort], reverse=subscription_sort.startswith("-"))
+
+        def billing_sort_url(param_name, current_sort, key):
+            params = self.request.GET.copy()
+            params[param_name] = f"-{key}" if current_sort == key else key
+            return f"?{urlencode(params, doseq=True)}"
+
         context["subscriptions"] = subscription_rows
         context["payments"] = payments[:25]
         context["invoices"] = BillingInvoice.objects.select_related("user", "subscription")[:50]
@@ -1122,12 +1212,30 @@ class BillingOverviewView(AdminRequiredMixin, TemplateView):
         context["total_turnover_label"] = format_amount(total_turnover, settings.STRIPE_CURRENCY)
         context["year_turnover_label"] = format_amount(year_turnover, settings.STRIPE_CURRENCY)
         context["month_turnover_label"] = format_amount(month_turnover, settings.STRIPE_CURRENCY)
-        context["active_subscription_count"] = subscriptions.filter(status__in=["active", "trialing"]).count() + sum(order.status in {ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID} for order in manual_orders)
+        context["active_subscription_count"] = subscriptions.filter(status__in=["active", "trialing"]).count() + sum(order.status in {ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID} for order in all_manual_orders)
         context["canceling_subscription_count"] = subscriptions.filter(cancel_at_period_end=True).count()
-        context["problem_subscription_count"] = subscriptions.filter(status__in=["past_due", "unpaid"]).count() + sum(order.is_overdue for order in manual_orders)
-        for order in manual_orders:
-            order.latest_manual_invoice = next(iter(order.invoices.all()), None)
+        context["problem_subscription_count"] = subscriptions.filter(status__in=["past_due", "unpaid"]).count() + sum(order.is_overdue for order in all_manual_orders)
         context["manual_plan_orders"] = manual_orders
+        context["billing_search_query"] = search_query
+        context["manual_sort"] = manual_sort
+        context["subscription_sort"] = subscription_sort
+        context["manual_sort_urls"] = {
+            "customer": billing_sort_url("manual_sort", manual_sort, "customer"),
+            "amount": billing_sort_url("manual_sort", manual_sort, "amount"),
+            "status": billing_sort_url("manual_sort", manual_sort, "status"),
+            "payment_due": billing_sort_url("manual_sort", manual_sort, "payment_due"),
+            "access": billing_sort_url("manual_sort", manual_sort, "access"),
+            "invoice": billing_sort_url("manual_sort", manual_sort, "invoice"),
+        }
+        context["subscription_sort_urls"] = {
+            "customer": billing_sort_url("subscription_sort", subscription_sort, "customer"),
+            "plan": billing_sort_url("subscription_sort", subscription_sort, "plan"),
+            "status": billing_sort_url("subscription_sort", subscription_sort, "status"),
+            "price": billing_sort_url("subscription_sort", subscription_sort, "price"),
+            "renewal": billing_sort_url("subscription_sort", subscription_sort, "renewal"),
+            "payment": billing_sort_url("subscription_sort", subscription_sort, "payment"),
+            "invoice": billing_sort_url("subscription_sort", subscription_sort, "invoice"),
+        }
         context["manual_payment_recipient"] = settings.MANUAL_PAYMENT_RECIPIENT
         return context
 
@@ -1136,29 +1244,88 @@ class BillingInvoicesAdminView(AdminRequiredMixin, TemplateView):
     template_name = "dashboard/billing_invoices_admin.html"
 
     def get_context_data(self, **kwargs):
+        from urllib.parse import urlencode
+
         context = super().get_context_data(**kwargs)
+        sort = self.request.GET.get("sort", "-paid")
+        search_query = self.request.GET.get("q", "").strip()
         rows = []
         for payment in BillingPayment.objects.filter(status="paid").select_related("user", "subscription").prefetch_related("invoices"):
+            invoice = next(iter(payment.invoices.all()), None)
             rows.append({
                 "kind": "stripe",
                 "object": payment,
                 "user": payment.user,
                 "plan": payment.subscription.get_tier_display() if payment.subscription else "Stripe",
                 "amount": payment.formatted_amount(),
+                "amount_value": payment.amount_paid,
                 "paid_at": payment.paid_at,
-                "invoice": next(iter(payment.invoices.all()), None),
+                "invoice": invoice,
             })
         for order in ManualPlanOrder.objects.filter(status=ManualPlanOrderStatus.PAID).select_related("user").prefetch_related("invoices"):
+            invoice = next(iter(order.invoices.all()), None)
             rows.append({
                 "kind": "manual",
                 "object": order,
                 "user": order.user,
                 "plan": "Pro Manual",
                 "amount": order.formatted_amount(),
+                "amount_value": order.amount,
                 "paid_at": order.paid_at,
-                "invoice": next(iter(order.invoices.all()), None),
+                "invoice": invoice,
             })
-        context["invoice_rows"] = sorted(rows, key=lambda row: row["paid_at"] or timezone.now(), reverse=True)
+        sort_map = {
+            "customer": lambda row: (row["user"].email or "").lower(),
+            "-customer": lambda row: (row["user"].email or "").lower(),
+            "plan": lambda row: row["plan"],
+            "-plan": lambda row: row["plan"],
+            "amount": lambda row: row["amount_value"],
+            "-amount": lambda row: row["amount_value"],
+            "paid": lambda row: row["paid_at"] or timezone.now(),
+            "-paid": lambda row: row["paid_at"] or timezone.now(),
+            "invoice": lambda row: (
+                not bool(row["invoice"]),
+                row["invoice"].sent_at or row["invoice"].issued_at if row["invoice"] else date.min,
+                row["invoice"].invoice_number if row["invoice"] else "",
+            ),
+            "-invoice": lambda row: (
+                not bool(row["invoice"]),
+                row["invoice"].sent_at or row["invoice"].issued_at if row["invoice"] else date.min,
+                row["invoice"].invoice_number if row["invoice"] else "",
+            ),
+        }
+        if sort not in sort_map:
+            sort = "-paid"
+
+        if search_query:
+            needle = search_query.lower()
+            rows = [
+                row for row in rows
+                if needle in " ".join([
+                    row["user"].email or "",
+                    row["plan"] or "",
+                    row["amount"] or "",
+                    row["kind"] or "",
+                    row["invoice"].invoice_number if row["invoice"] else "",
+                    "paid",
+                ]).lower()
+            ]
+
+        def sort_url(key):
+            params = self.request.GET.copy()
+            params["sort"] = f"-{key}" if sort == key else key
+            return f"?{urlencode(params, doseq=True)}"
+
+        context["invoice_rows"] = sorted(rows, key=sort_map[sort], reverse=sort.startswith("-"))
+        context["current_sort"] = sort
+        context["search_query"] = search_query
+        context["sort_urls"] = {
+            "customer": sort_url("customer"),
+            "plan": sort_url("plan"),
+            "amount": sort_url("amount"),
+            "paid": sort_url("paid"),
+            "invoice": sort_url("invoice"),
+        }
         context["missing_invoice_count"] = sum(not row["invoice"] for row in rows)
         return context
 
@@ -1344,6 +1511,8 @@ class ClientListView(AdminRequiredMixin, TemplateView):
                 distinct=True,
             ))
             .annotate(last_reviewed_at=models.Max("organizations__last_reviewed_at"))
+            .annotate(last_invoice_sent_at=models.Max("billing_invoices__sent_at"))
+            .annotate(last_invoice_issued_at=models.Max("billing_invoices__issued_at"))
             .prefetch_related("organizations")
         )
         if q:
@@ -1373,6 +1542,8 @@ class ClientListView(AdminRequiredMixin, TemplateView):
             "-login": ("-last_login", "email"),
             "reviewed": ("last_reviewed_at", "email"),
             "-reviewed": ("-last_reviewed_at", "email"),
+            "invoice": ("last_invoice_sent_at", "last_invoice_issued_at", "email"),
+            "-invoice": ("-last_invoice_sent_at", "-last_invoice_issued_at", "email"),
         }
         if sort not in sort_map:
             sort = "email"
@@ -1399,6 +1570,7 @@ class ClientListView(AdminRequiredMixin, TemplateView):
             "joined": sort_url("joined"),
             "login": sort_url("login"),
             "reviewed": sort_url("reviewed"),
+            "invoice": sort_url("invoice"),
         }
         return context
 

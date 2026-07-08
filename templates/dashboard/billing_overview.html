@@ -38,20 +38,36 @@
             <p class="mt-2 font-display text-2xl font-semibold text-[#284b63]">{{ canceling_subscription_count }} / {{ problem_subscription_count }}</p>
         </div>
     </div>
+
+    <form class="mt-6 flex flex-col gap-2 sm:flex-row" method="get">
+        <input type="hidden" name="manual_sort" value="{{ manual_sort }}">
+        <input type="hidden" name="subscription_sort" value="{{ subscription_sort }}">
+        <input
+            class="min-h-10 min-w-0 flex-1 rounded border border-[#d9d9d9] bg-white px-3 py-2 font-mono text-sm text-[#353535] placeholder-[#353535]/30 outline-none transition focus:border-[#5ca197] focus:ring-1 focus:ring-[#5ca197]/20"
+            type="search"
+            name="q"
+            value="{{ billing_search_query }}"
+            placeholder="{% if request.LANGUAGE_CODE == 'pl' %}Szukaj po kliencie, planie, statusie, fakturze lub tytule przelewu{% else %}Search by customer, plan, status, invoice or payment reference{% endif %}"
+        >
+        <button class="inline-flex min-h-10 items-center justify-center rounded bg-[#284b63] px-4 font-mono text-sm font-semibold text-white transition hover:bg-[#1e3a4f]" type="submit">{% if request.LANGUAGE_CODE == 'pl' %}Szukaj{% else %}Search{% endif %}</button>
+        {% if billing_search_query %}
+            <a class="inline-flex min-h-10 items-center justify-center rounded border border-[#d9d9d9] bg-white px-4 font-mono text-sm font-medium text-[#353535]/70 transition hover:border-[#5ca197] hover:text-[#5ca197]" href="{% url 'dashboard:billing-overview' %}?manual_sort={{ manual_sort }}&subscription_sort={{ subscription_sort }}">X</a>
+        {% endif %}
+    </form>
 </section>
 
 <section class="min-w-0 rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
     <h2 class="font-display text-2xl font-semibold tracking-tight text-[#284b63]">Pro Manual</h2>
     <p class="mt-1 text-sm text-[#353535]/55">{% if request.LANGUAGE_CODE == 'pl' %}R&#281;czne p&#322;atno&#347;ci roczne. Przeterminowane zam&#243;wienia wymagaj&#261; r&#281;cznego wy&#322;&#261;czenia.{% else %}Manual annual payments. Overdue orders require manual deactivation.{% endif %}</p>
     <div class="mt-4 overflow-x-auto">
-        <table class="w-full min-w-[1050px] table-fixed divide-y divide-[#d9d9d9] text-left font-mono text-[11px]">
-            <colgroup><col class="w-[12%]"><col class="w-[7%]"><col class="w-[7%]"><col class="w-[8%]"><col class="w-[11%]"><col class="w-[11%]"><col class="w-[15%]"><col class="w-[8%]"><col class="w-[21%]"></colgroup>
-            <thead><tr class="text-[10px] uppercase tracking-widest text-[#353535]/40"><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Klient{% else %}Customer{% endif %}</th><th class="px-3 py-3">Plan</th><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Kwota{% else %}Amount{% endif %}</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Termin p&#322;atno&#347;ci{% else %}Payment due{% endif %}</th><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Dost&#281;p do{% else %}Access until{% endif %}</th><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Tytu&#322; przelewu{% else %}Payment reference{% endif %}</th><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Akcje{% else %}Actions{% endif %}</th><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Faktura{% else %}Invoice{% endif %}</th></tr></thead>
+        <table class="w-full min-w-[1280px] table-fixed divide-y divide-[#d9d9d9] text-left font-mono text-[11px]">
+            <colgroup><col class="w-[18%]"><col class="w-[8%]"><col class="w-[7%]"><col class="w-[8%]"><col class="w-[10%]"><col class="w-[10%]"><col class="w-[14%]"><col class="w-[7%]"><col class="w-[9%]"><col class="w-[9%]"></colgroup>
+            <thead><tr class="text-[10px] uppercase tracking-widest text-[#353535]/40"><th class="px-3 py-3"><a class="hover:text-[#5ca197]" href="{{ manual_sort_urls.customer }}">{% if request.LANGUAGE_CODE == 'pl' %}Klient{% else %}Customer{% endif %}</a></th><th class="px-3 py-3">Plan</th><th class="px-3 py-3"><a class="hover:text-[#5ca197]" href="{{ manual_sort_urls.amount }}">{% if request.LANGUAGE_CODE == 'pl' %}Kwota{% else %}Amount{% endif %}</a></th><th class="px-3 py-3"><a class="hover:text-[#5ca197]" href="{{ manual_sort_urls.status }}">Status</a></th><th class="px-3 py-3"><a class="hover:text-[#5ca197]" href="{{ manual_sort_urls.payment_due }}">{% if request.LANGUAGE_CODE == 'pl' %}Termin p&#322;atno&#347;ci{% else %}Payment due{% endif %}</a></th><th class="px-3 py-3"><a class="hover:text-[#5ca197]" href="{{ manual_sort_urls.access }}">{% if request.LANGUAGE_CODE == 'pl' %}Dost&#281;p do{% else %}Access until{% endif %}</a></th><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Tytu&#322; przelewu{% else %}Payment reference{% endif %}</th><th class="px-3 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Akcje{% else %}Actions{% endif %}</th><th class="px-3 py-3"><a class="hover:text-[#5ca197]" href="{{ manual_sort_urls.invoice }}">{% if request.LANGUAGE_CODE == 'pl' %}Status faktury{% else %}Invoice status{% endif %}</a></th><th class="px-3 py-3"><a class="hover:text-[#5ca197]" href="{{ manual_sort_urls.invoice }}">{% if request.LANGUAGE_CODE == 'pl' %}Faktura{% else %}Invoice{% endif %}</a></th></tr></thead>
             <tbody class="divide-y divide-[#d9d9d9]">
                 {% for order in manual_plan_orders %}
                     <tr class="{% if order.is_overdue %}bg-rose-50{% endif %}">
-                        <td class="px-3 py-3">{{ order.user.email }}</td>
-                        <td class="px-3 py-3">Pro Manual</td>
+                        <td class="break-all px-3 py-3 pr-5 leading-5 text-[#353535]">{{ order.user.email }}</td>
+                        <td class="px-3 py-3 pl-4 leading-5 text-[#353535]/75">Pro Manual</td>
                         <td class="px-3 py-3">{{ order.formatted_amount }}</td>
                         <td class="px-3 py-3">{% if order.status == 'awaiting_payment' %}{% if request.LANGUAGE_CODE == 'pl' %}oczekuje{% else %}awaiting payment{% endif %}{% elif order.status == 'paid' %}{% if request.LANGUAGE_CODE == 'pl' %}op&#322;acony{% else %}paid{% endif %}{% else %}{% if request.LANGUAGE_CODE == 'pl' %}wy&#322;&#261;czony{% else %}disabled{% endif %}{% endif %}{% if order.is_overdue %} / overdue{% endif %}</td>
                         <td class="px-3 py-3">{{ order.payment_due_at|date:'Y-m-d H:i' }}</td>
@@ -67,15 +83,28 @@
                         </td>
                         <td class="px-2 py-3 align-top">
                             {% if order.latest_manual_invoice %}
-                                <span class="inline-flex rounded-full border border-[#5ca197]/30 bg-[#5ca197]/10 px-2.5 py-1 text-[#397b72]">{{ order.latest_manual_invoice.invoice_number }}</span>
+                                {% if order.latest_manual_invoice.sent %}
+                                    <span class="inline-flex rounded-full border border-[#5ca197]/30 bg-[#5ca197]/10 px-2.5 py-1 text-[#397b72]">{% if request.LANGUAGE_CODE == 'pl' %}Wys&#322;ana{% else %}Sent{% endif %}{% if order.latest_manual_invoice.sent_at %} / {{ order.latest_manual_invoice.sent_at|date:"Y-m-d" }}{% endif %}</span>
+                                {% else %}
+                                    <span class="inline-flex rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-amber-700">{% if request.LANGUAGE_CODE == 'pl' %}Wystawiona{% else %}Issued{% endif %}</span>
+                                {% endif %}
                             {% elif order.status == 'paid' %}
-                                <a class="font-mono text-[10px] font-semibold text-rose-500 hover:underline" href="{% url 'dashboard:billing-invoices-admin' %}">{% if request.LANGUAGE_CODE == 'pl' %}Brak faktury{% else %}Invoice missing{% endif %}</a>
+                                <span class="inline-flex rounded-full border border-rose-300 bg-rose-50 px-2.5 py-1 text-rose-600">{% if request.LANGUAGE_CODE == 'pl' %}Brak faktury{% else %}No invoice{% endif %}</span>
                             {% else %}
                                 <span class="text-[#353535]/45">{% if request.LANGUAGE_CODE == 'pl' %}Po potwierdzeniu p&#322;atno&#347;ci{% else %}Available after payment confirmation{% endif %}</span>
                             {% endif %}
                         </td>
+                        <td class="px-2 py-3 align-top">
+                            {% if order.latest_manual_invoice %}
+                                <a class="font-mono text-[10px] font-semibold text-[#5ca197] hover:underline" href="{% url 'dashboard:billing-customer-invoices' order.user.pk %}">{{ order.latest_manual_invoice.invoice_number }}</a>
+                            {% elif order.status == 'paid' %}
+                                <a class="font-mono text-[10px] font-semibold text-rose-500 hover:underline" href="{% url 'dashboard:billing-invoices-admin' %}">{% if request.LANGUAGE_CODE == 'pl' %}Wgraj faktur&#281;{% else %}Upload invoice{% endif %}</a>
+                            {% else %}
+                                <span class="text-[#353535]/45">-</span>
+                            {% endif %}
+                        </td>
                     </tr>
-                {% empty %}<tr><td class="px-3 py-5 text-[#353535]/45" colspan="9">{% if request.LANGUAGE_CODE == 'pl' %}Brak zam&#243;wie&#324; Pro Manual.{% else %}No Pro Manual orders.{% endif %}</td></tr>{% endfor %}
+                {% empty %}<tr><td class="px-3 py-5 text-[#353535]/45" colspan="10">{% if request.LANGUAGE_CODE == 'pl' %}Brak zam&#243;wie&#324; Pro Manual.{% else %}No Pro Manual orders.{% endif %}</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
@@ -148,15 +177,15 @@
         <table class="min-w-full divide-y divide-[#d9d9d9] text-left">
             <thead>
                 <tr class="font-mono text-[10px] uppercase tracking-widest text-[#353535]/40">
-                    <th class="px-4 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Klient{% else %}Customer{% endif %}</th>
-                    <th class="px-4 py-3">Plan</th>
-                    <th class="px-4 py-3">Status</th>
-                    <th class="px-4 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Cena{% else %}Price{% endif %}</th>
+                    <th class="px-4 py-3"><a class="hover:text-[#5ca197]" href="{{ subscription_sort_urls.customer }}">{% if request.LANGUAGE_CODE == 'pl' %}Klient{% else %}Customer{% endif %}</a></th>
+                    <th class="px-4 py-3"><a class="hover:text-[#5ca197]" href="{{ subscription_sort_urls.plan }}">Plan</a></th>
+                    <th class="px-4 py-3"><a class="hover:text-[#5ca197]" href="{{ subscription_sort_urls.status }}">Status</a></th>
+                    <th class="px-4 py-3"><a class="hover:text-[#5ca197]" href="{{ subscription_sort_urls.price }}">{% if request.LANGUAGE_CODE == 'pl' %}Cena{% else %}Price{% endif %}</a></th>
                     <th class="px-4 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Aktualna cena publiczna{% else %}Current public price{% endif %}</th>
-                    <th class="px-4 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Nast&#281;pne odnowienie{% else %}Next renewal{% endif %}</th>
-                    <th class="px-4 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Ostatnia p&#322;atno&#347;&#263;{% else %}Last payment{% endif %}</th>
-                    <th class="px-4 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Status faktury{% else %}Invoice status{% endif %}</th>
-                    <th class="px-4 py-3">{% if request.LANGUAGE_CODE == 'pl' %}Dane faktury{% else %}Invoice details{% endif %}</th>
+                    <th class="px-4 py-3"><a class="hover:text-[#5ca197]" href="{{ subscription_sort_urls.renewal }}">{% if request.LANGUAGE_CODE == 'pl' %}Nast&#281;pne odnowienie{% else %}Next renewal{% endif %}</a></th>
+                    <th class="px-4 py-3"><a class="hover:text-[#5ca197]" href="{{ subscription_sort_urls.payment }}">{% if request.LANGUAGE_CODE == 'pl' %}Ostatnia p&#322;atno&#347;&#263;{% else %}Last payment{% endif %}</a></th>
+                    <th class="px-4 py-3"><a class="hover:text-[#5ca197]" href="{{ subscription_sort_urls.invoice }}">{% if request.LANGUAGE_CODE == 'pl' %}Status faktury{% else %}Invoice status{% endif %}</a></th>
+                    <th class="px-4 py-3"><a class="hover:text-[#5ca197]" href="{{ subscription_sort_urls.invoice }}">{% if request.LANGUAGE_CODE == 'pl' %}Faktura{% else %}Invoice{% endif %}</a></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-[#d9d9d9] font-mono text-xs">
@@ -172,21 +201,23 @@
                         <td class="px-4 py-3">
                             {% if sub.latest_manual_invoice %}
                                 {% if sub.latest_manual_invoice.sent %}
-                                    <span class="inline-flex rounded-full border border-[#5ca197]/30 bg-[#5ca197]/10 px-2.5 py-1 text-[#397b72]">Sent{% if sub.latest_manual_invoice.sent_at %} / {{ sub.latest_manual_invoice.sent_at|date:"Y-m-d" }}{% endif %}</span>
+                                    <span class="inline-flex rounded-full border border-[#5ca197]/30 bg-[#5ca197]/10 px-2.5 py-1 text-[#397b72]">{% if request.LANGUAGE_CODE == 'pl' %}Wys&#322;ana{% else %}Sent{% endif %}{% if sub.latest_manual_invoice.sent_at %} / {{ sub.latest_manual_invoice.sent_at|date:"Y-m-d" }}{% endif %}</span>
                                 {% else %}
-                                    <span class="inline-flex rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-amber-700">Issued</span>
+                                    <span class="inline-flex rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-amber-700">{% if request.LANGUAGE_CODE == 'pl' %}Wystawiona{% else %}Issued{% endif %}</span>
                                 {% endif %}
                             {% elif sub.has_successful_payment %}
-                                <span class="inline-flex rounded-full border border-rose-300 bg-rose-50 px-2.5 py-1 text-rose-600">No invoice</span>
+                                <span class="inline-flex rounded-full border border-rose-300 bg-rose-50 px-2.5 py-1 text-rose-600">{% if request.LANGUAGE_CODE == 'pl' %}Brak faktury{% else %}No invoice{% endif %}</span>
                             {% else %}
-                                <span class="text-[#353535]/45">Waiting for paid Stripe payment</span>
+                                <span class="text-[#353535]/45">{% if request.LANGUAGE_CODE == 'pl' %}Oczekuje na op&#322;acon&#261; p&#322;atno&#347;&#263; Stripe{% else %}Waiting for paid Stripe payment{% endif %}</span>
                             {% endif %}
                         </td>
                         <td class="px-4 py-3">
-                            {% if sub.has_successful_payment %}
-                                <a class="font-mono text-[10px] font-semibold text-[#5ca197] hover:underline" href="{% url 'dashboard:billing-invoices-admin' %}">{% if request.LANGUAGE_CODE == 'pl' %}Przejd&#378; do faktur{% else %}Open invoices{% endif %}</a>
+                            {% if sub.latest_manual_invoice %}
+                                <a class="font-mono text-[10px] font-semibold text-[#5ca197] hover:underline" href="{% url 'dashboard:billing-customer-invoices' sub.user.pk %}">{{ sub.latest_manual_invoice.invoice_number }}</a>
+                            {% elif sub.has_successful_payment %}
+                                <a class="font-mono text-[10px] font-semibold text-rose-500 hover:underline" href="{% url 'dashboard:billing-invoices-admin' %}">{% if request.LANGUAGE_CODE == 'pl' %}Wgraj faktur&#281;{% else %}Upload invoice{% endif %}</a>
                             {% else %}
-                                <span class="text-[#353535]/45">Available after payment</span>
+                                <span class="text-[#353535]/45">{% if request.LANGUAGE_CODE == 'pl' %}Dost&#281;pne po p&#322;atno&#347;ci{% else %}Available after payment{% endif %}</span>
                             {% endif %}
                         </td>
                     </tr>
