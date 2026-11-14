@@ -1,1 +1,1 @@
-"""Application package for SentAi."""
+"""Application package for Xoaila."""

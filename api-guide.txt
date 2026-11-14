@@ -1,5 +1,5 @@
 ================================================================
-  SentAi Company Catalog API — Developer Guide
+  Xoaila Company Catalog API — Developer Guide
 ================================================================
 
 Base URL:      http://your-domain.com
@@ -164,7 +164,7 @@ Use for full syncs or loading the entire catalog into memory.
 Response shape:
   {
     "meta": {
-      "catalog": "sentai-company-catalog",
+      "catalog": "xoaila-company-catalog",
       "version": "1.0",
       "generated_at": "2026-05-06T22:00:00+00:00",
       "last_updated": "2026-05-06T21:42:00+00:00",

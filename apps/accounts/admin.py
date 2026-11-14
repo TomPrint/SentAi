@@ -5,10 +5,10 @@ from .models import User
 
 
 @admin.register(User)
-class SentAiUserAdmin(UserAdmin):
+class XoailaUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
         (
-            "SentAi",
+            "Xoaila",
             {
                 "fields": (
                     "company_name",
@@ -22,7 +22,7 @@ class SentAiUserAdmin(UserAdmin):
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
         (
-            "SentAi",
+            "Xoaila",
             {
                 "fields": (
                     "email",

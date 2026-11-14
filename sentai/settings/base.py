@@ -224,15 +224,15 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "SentAi Company Catalog API",
+    "TITLE": "Xoaila Company Catalog API",
     "DESCRIPTION": (
-        "Public read-only API for the SentAi company catalog. "
+        "Public read-only API for the Xoaila company catalog. "
         "All public endpoints require no authentication and are optimised "
         "for LLM agents, developers, and automated discovery tools."
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    "CONTACT": {"name": "SentAi"},
+    "CONTACT": {"name": "Xoaila"},
     "LICENSE": {"name": "Proprietary"},
 }
 
@@ -254,4 +254,4 @@ STORAGES["private"] = {"BACKEND": "apps.billing.storage.PrivateFileSystemStorage
 
 ADMIN_MFA_REQUIRED = env_bool("ADMIN_MFA_REQUIRED", True)
 REGISTRATION_EMAIL_VERIFICATION_REQUIRED = env_bool("REGISTRATION_EMAIL_VERIFICATION_REQUIRED", False)
-OTP_TOTP_ISSUER = "SentAi"
+OTP_TOTP_ISSUER = "Xoaila"

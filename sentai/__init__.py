@@ -1,1 +1,1 @@
-"""SentAi Django project package."""
+"""Xoaila Django project package."""

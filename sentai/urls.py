@@ -18,8 +18,8 @@ from apps.companies.views import (
 )
 from apps.dashboard.views import LandingView, StripeWebhookView
 
-admin.site.site_header = "SentAi Administration"
-admin.site.site_title = "SentAi Admin"
+admin.site.site_header = "Xoaila Administration"
+admin.site.site_title = "Xoaila Admin"
 admin.site.index_title = "Platform management"
 
 urlpatterns = [

@@ -802,7 +802,7 @@ class BulkAllJsonView(APIView):
             .first()
         )
         meta = {
-                "catalog": "sentai-company-catalog",
+                "catalog": "xoaila-company-catalog",
                 "version": "1.0",
                 "generated_at": timezone.now().isoformat(),
                 "last_updated": latest.isoformat() if latest else None,
@@ -852,7 +852,7 @@ class SiteLLMsTextView(APIView):
             .order_by("name")
         )
         lines = [
-            "# llms.txt — SentAi Company Catalog",
+            "# llms.txt — Xoaila Company Catalog",
             "# This file lists verified companies that have opted in to AI indexing, on every plan.",
             "# Each entry links to a dedicated llms.txt feed for that company.",
             "# Convention: https://llmstxt.org",
@@ -900,7 +900,7 @@ class RobotsTextView(APIView):
 
     def get(self, request, *args, **kwargs):
         lines = [
-            "# SentAi crawler policy",
+            "# Xoaila crawler policy",
             "# Public company catalog, AI-readable feeds, and API docs are crawlable.",
             "# The sitemap lists every published profile language with hreflang alternates.",
             "# The LLM index links to every localized company llms.txt feed.",

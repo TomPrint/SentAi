@@ -1,1 +1,1 @@
-"""Settings package for SentAi."""
+"""Settings package for Xoaila."""
