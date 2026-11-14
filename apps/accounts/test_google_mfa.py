@@ -8,7 +8,25 @@ from django_otp.plugins.otp_static.models import StaticToken
 from .models import User, GoogleIdentity
 
 
-@override_settings(GOOGLE_CLIENT_ID="test.apps.googleusercontent.com")
+@override_settings(GOOGLE_SIGNIN_ENABLED=False, GOOGLE_CLIENT_ID="test.apps.googleusercontent.com")
+class GoogleSignInDisabledTests(TestCase):
+    def test_google_signin_is_hidden_and_callback_is_unavailable(self):
+        for route_name in ("login", "register"):
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertNotContains(response, "accounts.google.com/gsi/client")
+                self.assertNotContains(response, reverse("accounts:google-signin"))
+
+        response = self.client.post(
+            reverse("accounts:google-signin"),
+            {"credential": "disabled-google-token"},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(User.objects.exists())
+
+
+@override_settings(GOOGLE_SIGNIN_ENABLED=True, GOOGLE_CLIENT_ID="test.apps.googleusercontent.com")
 class GoogleSignInTests(TestCase):
     def test_google_pages_allow_identity_popup_to_return_credential(self):
         response = self.client.get(reverse("register"))

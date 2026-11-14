@@ -9,6 +9,7 @@ from playwright.async_api import async_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "artifacts" / "tutorial_videos" / "screens"
+LOCAL_TAILWIND = ROOT / "artifacts" / "tutorial_videos" / "work" / "tailwindcss.js"
 BASE_URL = "http://127.0.0.1:8010"
 CHROME = Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 
@@ -122,6 +123,12 @@ async def capture_language(page, language, organization_id=1):
 
 async def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
+    if not LOCAL_TAILWIND.exists():
+        raise FileNotFoundError(
+            "Missing local Tailwind browser build. Save the official CDN script "
+            f"as {LOCAL_TAILWIND} before capturing tutorial screens."
+        )
+    tailwind_browser_build = LOCAL_TAILWIND.read_text(encoding="utf-8")
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             executable_path=str(CHROME),
@@ -133,6 +140,16 @@ async def main():
             device_scale_factor=1,
             color_scheme="light",
             locale="pl-PL",
+        )
+        # Recording must not depend on external network access. Fulfil the exact
+        # script URL used by the application with the pinned local browser build.
+        await context.route(
+            "https://cdn.tailwindcss.com?plugins=forms,typography",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/javascript; charset=utf-8",
+                body=tailwind_browser_build,
+            ),
         )
         page = await context.new_page()
         languages = [sys.argv[1]] if len(sys.argv) > 1 else ["pl", "en"]

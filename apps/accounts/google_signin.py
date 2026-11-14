@@ -9,6 +9,7 @@ from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.http import Http404
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views import View
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def google_context(request):
-    enabled = bool(settings.GOOGLE_CLIENT_ID)
+    enabled = bool(getattr(settings, "GOOGLE_SIGNIN_ENABLED", False) and settings.GOOGLE_CLIENT_ID)
     nonce = ""
     if enabled and request.method == "GET" and any(part in request.path for part in ("/login/", "/register/")):
         challenge = request.session.get("google_challenge", {})
@@ -71,6 +72,9 @@ def resolve_google_user(claims, current_user=None):
 
 class GoogleSignInView(View):
     def post(self, request):
+        if not getattr(settings, "GOOGLE_SIGNIN_ENABLED", False):
+            raise Http404
+
         destination = "accounts:profile" if request.user.is_authenticated else "login"
         if request.user.is_authenticated:
             messages.error(

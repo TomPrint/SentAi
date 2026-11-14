@@ -1,12 +1,12 @@
 # Google sign-in and administrator setup
 
-Implemented locally on 6 September 2026. Google sign-in is disabled until `GOOGLE_CLIENT_ID` is configured. No client secret or Gmail mailbox permission is required.
+Implemented locally on 6 September 2026 and retained for a possible future relaunch. Google sign-in is disabled by default. It is available only when both `GOOGLE_SIGNIN_ENABLED=True` and `GOOGLE_CLIENT_ID` are configured. No client secret or Gmail mailbox permission is required.
 
 ## Enable Google sign-in
 
 1. In Google Cloud, configure the OAuth consent screen/Google Auth Platform branding and audience for the app. During testing, add the intended test users.
 2. Create an OAuth client with application type **Web application**. Register each exact **Authorized JavaScript origin**, including protocol and port: for example `http://localhost:8000`, `http://127.0.0.1:8000`, and your production HTTPS origin. Use only origins you control.
-3. Set `GOOGLE_CLIENT_ID=...apps.googleusercontent.com` in the app environment and restart the server. The login and registration pages will show Google's standard sign-in button. This implementation uses the GIS JavaScript callback and a same-origin CSRF-protected form, so it does not require an OAuth authorization-code redirect URI or client secret.
+3. Set `GOOGLE_SIGNIN_ENABLED=True` and `GOOGLE_CLIENT_ID=...apps.googleusercontent.com` in the app environment, then restart the server. The login and registration pages will show Google's standard sign-in button. This implementation uses the GIS JavaScript callback and a same-origin CSRF-protected form, so it does not require an OAuth authorization-code redirect URI or client secret.
 4. Test the actual Google popup on each registered origin. Check Google signup, returning Google login, cancellation, and administrator redirection to the second-factor check. Google may require consent-screen verification depending on audience and branding. Follow its console's requirements before making the integration public.
 
 Google's maintained Python library verifies ID-token signatures, the configured audience, issuer and expiry. The app additionally checks a short-lived, session-bound nonce and verified Gmail/Google Workspace email. It stores Google's stable subject ID rather than using email as the returning-login identifier. ID tokens are not stored. The authentication method is fixed when the account is created: password accounts cannot later link Google, and Google-created accounts continue to use Google. Matching email alone cannot merge or activate an account. Disabled accounts remain disabled.

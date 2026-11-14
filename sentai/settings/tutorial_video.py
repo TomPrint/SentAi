@@ -14,4 +14,5 @@ DATABASES = {
 
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 INTERNATIONAL_BILLING_ENABLED = False
+GOOGLE_SIGNIN_ENABLED = False
 

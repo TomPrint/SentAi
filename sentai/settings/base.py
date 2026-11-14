@@ -66,6 +66,8 @@ DEBUG = env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "")
 SITE_BASE_URL = os.getenv("SITE_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+GOOGLE_SIGNIN_ENABLED = env_bool("GOOGLE_SIGNIN_ENABLED", False)
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 
 # Google Identity Services uses a cross-origin popup. Keeping the popup in the
 # opener's browsing-context group lets it return the signed credential.
@@ -154,7 +156,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "sentai.wsgi.application"
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 ASGI_APPLICATION = "sentai.asgi.application"
 
 DATABASES = {"default": database_config()}

@@ -16,7 +16,13 @@ django.setup()
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from apps.billing.models import BillingPlanPrice, BillingSubscription
+from apps.billing.models import (
+    AnnualPlanPaymentMethod,
+    BillingPlanPrice,
+    BillingSubscription,
+    ManualPlanOrder,
+    ManualPlanOrderStatus,
+)
 from apps.companies.models import ContentEntry, Organization, Product, SocialProfile, Tag
 
 
@@ -39,6 +45,7 @@ def run():
             "plan_tier": "PRO",
             "plan_selected_at": timezone.now(),
             "paid_plan_started_at": timezone.now(),
+            "plan_access_status": "ACTIVE",
             "email_verified_at": timezone.now(),
             "registration_pending": False,
             "is_active": True,
@@ -61,17 +68,22 @@ def run():
             },
         )
 
-    BillingSubscription.objects.update_or_create(
+    # The published app currently uses one-time annual payments. Keep the
+    # dormant subscription integration out of customer-facing tutorial data.
+    BillingSubscription.objects.filter(user=user).delete()
+    ManualPlanOrder.objects.filter(user=user).delete()
+    ManualPlanOrder.objects.create(
         user=user,
-        defaults={
-            "tier": "PRO",
-            "status": "active",
-            "stripe_customer_id": "cus_tutorial",
-            "stripe_subscription_id": "sub_tutorial",
-            "stripe_price_id": "price_tutorial_pro_pln",
-            "current_period_start": timezone.now(),
-            "current_period_end": timezone.now() + timezone.timedelta(days=365),
-        },
+        tier="PRO",
+        original_amount=40000,
+        amount=40000,
+        currency="pln",
+        payment_method=AnnualPlanPaymentMethod.BLIK,
+        status=ManualPlanOrderStatus.PAID,
+        payment_reference="PRO-BLIK-TUTORIAL-JAN-KOWALSKI",
+        payment_due_at=timezone.now(),
+        access_until=timezone.now() + timezone.timedelta(days=365),
+        paid_at=timezone.now(),
     )
 
     organization, _ = Organization.objects.update_or_create(

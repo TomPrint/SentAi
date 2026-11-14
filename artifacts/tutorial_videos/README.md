@@ -9,7 +9,14 @@ This folder contains two customer-facing walkthroughs generated from the real lo
 
 The example company, email addresses, URLs, Stripe identifiers and subscription are fictional. The videos explain that structured publication improves machine readability but does not guarantee indexing, recommendations or citations by an AI provider.
 
-To regenerate the current caption-and-music versions, install `tools/tutorial_video/requirements.txt`, start the isolated tutorial server, run `tools/tutorial_video/capture.py`, then use:
+To regenerate the current caption-and-music versions, install `tools/tutorial_video/requirements.txt`. The capture is intentionally independent of the public Tailwind CDN. Download the official pinned browser build into the disposable work directory first:
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/tutorial_videos/work | Out-Null
+curl.exe -L "https://cdn.tailwindcss.com/3.4.17?plugins=forms,typography" -o artifacts/tutorial_videos/work/tailwindcss.js
+```
+
+Then start the isolated tutorial server, run `tools/tutorial_video/capture.py`, and use:
 
 ```powershell
 python tools/tutorial_video/render.py all --silent --music media/soundsurfer.mp3
