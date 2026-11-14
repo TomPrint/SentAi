@@ -1,0 +1,11 @@
+{% if language_code == "pl" %}Twój płatny plan {{ order.get_tier_display }} kończy się {{ order.access_until|date:"Y-m-d" }}.
+
+Odnów plan przed zakończeniem obecnego okresu, aby profile Twoich firm pozostały publikowane bez przerwy. Wcześniejsza płatność nie skraca obecnego okresu — kolejny rok rozpocznie się po jego zakończeniu.
+
+Odnów plan: {{ renewal_url }}
+{% else %}Your paid {{ order.get_tier_display }} plan ends on {{ order.access_until|date:"Y-m-d" }}.
+
+Renew before the current period ends to keep your company profiles published without interruption. Paying early does not shorten the current period — the next year starts after it ends.
+
+Renew your plan: {{ renewal_url }}
+{% endif %}

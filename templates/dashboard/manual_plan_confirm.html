@@ -6,6 +6,7 @@
     <h1 class="mt-2 font-display text-3xl font-bold text-[#284b63]">
         {% if request.LANGUAGE_CODE == 'pl' %}Potwierd&#378; zam&#243;wienie planu rocznego{% else %}Confirm annual plan order{% endif %}
     </h1>
+    {% if is_manual_upgrade %}<div class="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>{% if request.LANGUAGE_CODE == 'pl' %}Uwaga — ulepszenie planu:{% else %}Plan upgrade warning:{% endif %}</strong> {% if request.LANGUAGE_CODE == 'pl' %}Po potwierdzeniu zamówienia nowy plan zastąpi obecny i rozpocznie nowy okres 12 miesięcy. Płacisz pełną cenę nowego planu; poprzednia opłata i niewykorzystany okres nie podlegają zwrotowi ani odliczeniu.{% else %}After order confirmation, the new plan replaces the current one and starts a new 12-month period. You pay the full new-plan price; the previous fee and unused time are not refunded or credited.{% endif %}</div>{% endif %}
     <div class="mt-6 space-y-3 rounded-lg border border-[#5ca197]/40 bg-[#5ca197]/10 p-5 text-sm leading-6 text-[#284b63]">
         {% if request.LANGUAGE_CODE == 'pl' %}
             <p>Plan {{ manual_plan_name }} zostanie aktywowany natychmiast na 12 miesi&#281;cy. Cena netto wynosi {{ manual_pro_net_price_label }}.<br>Kwota do przelewu wynosi <strong>{{ manual_pro_price_label }} brutto z VAT</strong>.</p>

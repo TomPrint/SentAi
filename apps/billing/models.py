@@ -308,7 +308,22 @@ class ManualPlanOrder(models.Model):
     )
     payment_reference = models.CharField(max_length=255, unique=True)
     payment_due_at = models.DateTimeField()
+    access_starts_at = models.DateTimeField(blank=True, null=True)
     access_until = models.DateTimeField()
+    renewal_of = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        related_name="renewal_orders",
+    )
+    upgrade_from = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        related_name="upgrade_orders",
+    )
     paid_at = models.DateTimeField(blank=True, null=True)
     disabled_at = models.DateTimeField(blank=True, null=True)
     termination_acknowledged_at = models.DateTimeField(blank=True, null=True)

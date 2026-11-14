@@ -1,4 +1,5 @@
 from datetime import timedelta
+import logging
 
 from django.urls import reverse
 from django.utils import timezone
@@ -9,6 +10,9 @@ from apps.accounts.models import UserPlanTier
 from apps.billing.models import AnnualPlanPaymentMethod, BillingInvoice, BillingPayment, BillingPaymentStatus, BillingSubscription, ManualPlanOrder, ManualPlanOrderStatus
 
 from .models import AdminNotification, CustomerNotification, NotificationCategory, NotificationSeverity
+
+
+logger = logging.getLogger(__name__)
 
 
 def notify_admin(*, title, message, category, severity=NotificationSeverity.INFO, customer=None, action_url="", reference_key=None, title_pl="", message_pl=""):
@@ -158,17 +162,15 @@ def _manual_order_admin_plan_label(order):
 
 
 def notify_manual_order_created(order):
-    is_renewal = ManualPlanOrder.objects.filter(
-        user=order.user,
-        paid_at__isnull=False,
-        created_at__lt=order.created_at,
-    ).exclude(pk=order.pk).exists()
+    is_renewal = bool(order.renewal_of_id)
+    is_upgrade = bool(order.upgrade_from_id)
     plan_label = _manual_order_admin_plan_label(order)
+    action_label = "upgrade" if is_upgrade else "renewal" if is_renewal else "new"
     notify_admin(
-        title=(f"{plan_label} renewal order" if is_renewal else f"New {plan_label} order"),
-        message=f"{order.user.email} activated {'another annual period of' if is_renewal else ''} {plan_label}. Payment is due by {order.payment_due_at:%Y-%m-%d %H:%M}.",
-        title_pl=(f"Odnowienie {plan_label}" if is_renewal else f"Nowe zamówienie {plan_label}"),
-        message_pl=f"{order.user.email} aktywował {'kolejny roczny okres planu' if is_renewal else 'plan'} {plan_label}. Termin płatności: {order.payment_due_at:%Y-%m-%d %H:%M}.",
+        title=(f"{plan_label} upgrade order" if is_upgrade else f"{plan_label} renewal order" if is_renewal else f"New {plan_label} order"),
+        message=f"{order.user.email} created a {action_label} order for {plan_label}. Payment is due by {order.payment_due_at:%Y-%m-%d %H:%M}.",
+        title_pl=(f"Ulepszenie do {plan_label}" if is_upgrade else f"Odnowienie {plan_label}" if is_renewal else f"Nowe zamówienie {plan_label}"),
+        message_pl=f"{order.user.email} utworzył zamówienie ({'ulepszenie' if is_upgrade else 'odnowienie' if is_renewal else 'nowy plan'}) {plan_label}. Termin płatności: {order.payment_due_at:%Y-%m-%d %H:%M}.",
         category=NotificationCategory.MANUAL_PLAN,
         severity=NotificationSeverity.WARNING,
         customer=order.user,
@@ -197,21 +199,18 @@ def notify_invoice_needed_for_payment(payment):
 
 
 def notify_invoice_needed_for_manual_order(order):
-    is_renewal = ManualPlanOrder.objects.filter(
-        user=order.user,
-        paid_at__isnull=False,
-        created_at__lt=order.created_at,
-    ).exclude(pk=order.pk).exists()
+    is_renewal = bool(order.renewal_of_id)
+    is_upgrade = bool(order.upgrade_from_id)
     plan_label = _manual_order_admin_plan_label(order)
     payment_description = "a BLIK annual plan" if order.payment_method == AnnualPlanPaymentMethod.BLIK else "a new annual bank-transfer plan"
     renewal_description = "another annual BLIK payment" if order.payment_method == AnnualPlanPaymentMethod.BLIK else "another annual bank-transfer payment"
     payment_description_pl = "roczny plan opłacony BLIK" if order.payment_method == AnnualPlanPaymentMethod.BLIK else "nowy roczny plan opłacany przelewem"
     renewal_description_pl = "kolejną roczną płatność BLIK" if order.payment_method == AnnualPlanPaymentMethod.BLIK else "kolejną roczną płatność przelewem"
     notify_admin(
-        title=f"{plan_label} {'renewal ' if is_renewal else ''}payment needs invoice",
-        message=f"{order.user.email} paid {order.formatted_amount()} for {renewal_description if is_renewal else payment_description}. Upload and send an invoice.",
-        title_pl=(f"Odnowienie {plan_label} wymaga wystawienia faktury" if is_renewal else f"Płatność {plan_label} wymaga wystawienia faktury"),
-        message_pl=f"{order.user.email} zapłacił {order.formatted_amount()} za {renewal_description_pl if is_renewal else payment_description_pl}. Wystaw i wyślij fakturę.",
+        title=f"{plan_label} {'upgrade ' if is_upgrade else 'renewal ' if is_renewal else ''}payment needs invoice",
+        message=f"{order.user.email} paid {order.formatted_amount()} for {'a plan upgrade' if is_upgrade else renewal_description if is_renewal else payment_description}. Upload and send an invoice.",
+        title_pl=(f"Ulepszenie do {plan_label} wymaga wystawienia faktury" if is_upgrade else f"Odnowienie {plan_label} wymaga wystawienia faktury" if is_renewal else f"Płatność {plan_label} wymaga wystawienia faktury"),
+        message_pl=f"{order.user.email} zapłacił {order.formatted_amount()} za {'ulepszenie planu' if is_upgrade else renewal_description_pl if is_renewal else payment_description_pl}. Wystaw i wyślij fakturę.",
         category=NotificationCategory.INVOICE,
         severity=NotificationSeverity.WARNING,
         customer=order.user,
@@ -468,17 +467,41 @@ def notify_customer_manual_payment_due(order):
 
 
 def notify_customer_manual_renewal(order, days):
-    notify_customer(
+    notification = notify_customer(
         user=order.user,
         title=f"{order.get_tier_display()} ends in {days} days",
-        message=f"Your {order.get_tier_display()} plan ends on {order.access_until:%Y-%m-%d}. Purchase the plan again to keep company profiles published without interruption.",
+        message=f"Your paid {order.get_tier_display()} plan ends on {order.access_until:%Y-%m-%d}. Renew it to keep company profiles published without interruption. An early payment starts the next year after the current period ends.",
         title_pl=f"Plan {order.get_tier_display()} kończy się za {days} dni",
-        message_pl=f"Twój plan {order.get_tier_display()} kończy się {order.access_until:%Y-%m-%d}. Wykup plan ponownie, aby zachować ciągłość publikacji profili firm.",
+        message_pl=f"Twój płatny plan {order.get_tier_display()} kończy się {order.access_until:%Y-%m-%d}. Odnów go, aby zachować ciągłość publikacji profili firm. Wcześniejsza płatność rozpocznie kolejny rok dopiero po końcu obecnego okresu.",
         category=NotificationCategory.MANUAL_PLAN,
         severity=NotificationSeverity.URGENT,
-        action_url=reverse("dashboard:plan-update"),
+        action_url=f'{reverse("dashboard:plan-update")}?renew=1',
         reference_key=f"customer:{order.user_id}:manual-renewal-{days}:{order.pk}:{order.access_until.date()}",
     )
+    attempt_at = timezone.now()
+    claimed = CustomerNotification.objects.filter(
+        pk=notification.pk,
+        email_sent_at__isnull=True,
+    ).filter(
+        Q(email_last_attempt_at__isnull=True)
+        | Q(email_last_attempt_at__lt=attempt_at - timedelta(minutes=10))
+    ).update(email_last_attempt_at=attempt_at, email_error="")
+    if claimed:
+        try:
+            from .emails import send_renewal_reminder_email
+
+            send_renewal_reminder_email(notification, order, days)
+        except Exception as exc:
+            notification.email_error = str(exc)[:2000]
+            notification.save(update_fields=["email_error", "updated_at"])
+            logger.exception("Could not send renewal reminder %s", notification.reference_key)
+        else:
+            notification.email_sent_at = timezone.now()
+            notification.email_error = ""
+            notification.save(
+                update_fields=["email_sent_at", "email_error", "updated_at"]
+            )
+    return notification
 
 
 def notify_admin_subscription_renewal(subscription):
@@ -558,7 +581,7 @@ def scan_admin_notifications():
         status=ManualPlanOrderStatus.PAID,
         access_until__gte=now,
         access_until__lte=renewal_cutoff,
-    ).select_related("user"):
+    ).exclude(renewal_orders__status=ManualPlanOrderStatus.PAID).select_related("user"):
         notify_admin_manual_renewal(order)
 
     paid_manual_with_invoice = BillingInvoice.objects.filter(manual_order__isnull=False).select_related("manual_order")
@@ -599,10 +622,17 @@ def scan_customer_notifications(user):
         if now <= order.payment_due_at <= now + timedelta(days=7) or order.payment_due_at < now:
             notify_customer_manual_payment_due(order)
 
-    for order in ManualPlanOrder.objects.filter(user=user, status=ManualPlanOrderStatus.PAID):
+    for order in ManualPlanOrder.objects.filter(
+        user=user,
+        status=ManualPlanOrderStatus.PAID,
+        access_until__gte=now,
+        access_until__lte=renewal_cutoff,
+    ).exclude(renewal_orders__status=ManualPlanOrderStatus.PAID):
         days_left = (order.access_until.date() - now.date()).days
-        if 0 <= days_left <= 14:
+        if 6 <= days_left <= 14:
             notify_customer_manual_renewal(order, 14)
+        elif 0 <= days_left <= 5:
+            notify_customer_manual_renewal(order, 5)
 
 
 def resolve_customer_condition(user, reference, resolved):

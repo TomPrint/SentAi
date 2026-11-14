@@ -84,6 +84,9 @@ class CustomerNotification(models.Model):
     reference_key = models.CharField(max_length=180, unique=True, blank=True, null=True)
     resolved_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
+    email_sent_at = models.DateTimeField(blank=True, null=True)
+    email_last_attempt_at = models.DateTimeField(blank=True, null=True)
+    email_error = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

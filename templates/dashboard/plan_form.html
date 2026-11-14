@@ -20,10 +20,11 @@
 </style>
 <section class="min-w-0 w-full rounded-xl border border-[#d9d9d9] bg-white p-4 sm:p-6 lg:p-8">
     <span class="inline-flex rounded-full border border-[#5ca197]/25 bg-[#5ca197]/8 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">Plan</span>
-    <h1 class="mt-3 font-display text-3xl font-bold text-[#284b63] sm:text-4xl">{% if is_upgrade_view %}{% if request.LANGUAGE_CODE == 'pl' %}Ulepsz plan{% else %}Upgrade plan{% endif %}{% else %}{% if request.LANGUAGE_CODE == 'pl' %}Wybierz plan{% else %}Choose a plan{% endif %}{% endif %}</h1>
-    <p class="mt-2 text-sm text-[#353535]/60">{% if request.LANGUAGE_CODE == 'pl' %}Wybierz roczny plan. W kolejnym kroku zapłacisz BLIK-iem albo przelewem bankowym.{% else %}Choose an annual plan. In the next step, pay with BLIK or by bank transfer.{% endif %}</p>
+    <h1 class="mt-3 font-display text-3xl font-bold text-[#284b63] sm:text-4xl">{% if is_renewal_view %}{% if request.LANGUAGE_CODE == 'pl' %}Odnów plan{% else %}Renew plan{% endif %}{% elif is_upgrade_view %}{% if request.LANGUAGE_CODE == 'pl' %}Ulepsz plan{% else %}Upgrade plan{% endif %}{% else %}{% if request.LANGUAGE_CODE == 'pl' %}Wybierz plan{% else %}Choose a plan{% endif %}{% endif %}</h1>
+    <p class="mt-2 text-sm text-[#353535]/60">{% if is_renewal_view %}{% if request.LANGUAGE_CODE == 'pl' %}Kolejny roczny okres rozpocznie się po zakończeniu obecnego. Wcześniejsza płatność nie skróci aktywnego planu.{% else %}The next annual period starts after the current one ends. Paying early will not shorten your active plan.{% endif %}{% elif request.LANGUAGE_CODE == 'pl' %}Wybierz roczny plan. W kolejnym kroku zapłacisz BLIK-iem albo przelewem bankowym.{% else %}Choose an annual plan. In the next step, pay with BLIK or by bank transfer.{% endif %}</p>
+    {% if is_upgrade_view %}<div class="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>{% if request.LANGUAGE_CODE == 'pl' %}Ważne:{% else %}Important:{% endif %}</strong> {% if request.LANGUAGE_CODE == 'pl' %}Ulepszenie uruchamia nowy plan na 12 miesięcy i wymaga zapłaty pełnej ceny wybranego wyższego planu. Opłata za dotychczasowy plan ani jego niewykorzystany okres nie podlegają zwrotowi i nie są odliczane od ceny ulepszenia.{% else %}Upgrading starts a new 12-month plan and requires payment of the full price of the selected higher plan. The previous plan fee and unused time are not refunded or credited toward the upgrade.{% endif %}</div>{% endif %}
     <form class="mt-7" method="post">
-        {% csrf_token %}{{ form.billing_currency }}
+        {% csrf_token %}{{ form.billing_currency }}{% if is_renewal_view %}<input type="hidden" name="renewal" value="1">{% endif %}{% if is_upgrade_view %}<input type="hidden" name="upgrade" value="1">{% endif %}
         <div class="grid gap-4 md:grid-cols-3">
         {% for radio in form.plan_tier %}{% with tier=radio.data.value %}{% if tier in visible_plan_tiers %}
             <label class="plan-tier-card {% if tier == 'PLUS' %}plan-tier-card-plus{% elif tier == 'PRO' %}plan-tier-card-pro{% endif %} flex cursor-pointer flex-col">
@@ -46,7 +47,7 @@
         {% if form.plan_tier.errors %}<p class="mt-3 text-sm font-semibold text-rose-600">{{ form.plan_tier.errors|striptags }}</p>{% endif %}
         {% if form.non_field_errors %}<p class="mt-3 text-sm font-semibold text-rose-600">{{ form.non_field_errors|striptags }}</p>{% endif %}
         <div class="mt-6 flex flex-col gap-2 sm:flex-row">
-            <button class="min-h-11 w-full rounded bg-[#284b63] px-5 py-2.5 text-sm font-semibold text-white sm:w-auto" type="submit">{% if request.LANGUAGE_CODE == 'pl' %}Wybierz plan i przejdź dalej{% else %}Choose plan and continue{% endif %}</button>
+            <button class="min-h-11 w-full rounded bg-[#284b63] px-5 py-2.5 text-sm font-semibold text-white sm:w-auto" type="submit">{% if is_renewal_view %}{% if request.LANGUAGE_CODE == 'pl' %}Odnów plan i przejdź dalej{% else %}Renew plan and continue{% endif %}{% elif is_upgrade_view %}{% if request.LANGUAGE_CODE == 'pl' %}Ulepsz plan i przejdź dalej{% else %}Upgrade plan and continue{% endif %}{% elif request.LANGUAGE_CODE == 'pl' %}Wybierz plan i przejdź dalej{% else %}Choose plan and continue{% endif %}</button>
             <a class="inline-flex min-h-11 items-center justify-center rounded border border-[#d9d9d9] px-5 py-2.5 text-sm" href="{% url 'dashboard:home' %}">{% if request.LANGUAGE_CODE == 'pl' %}Wróć{% else %}Back{% endif %}</a>
         </div>
     </form>

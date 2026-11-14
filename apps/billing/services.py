@@ -151,7 +151,7 @@ def fulfill_blik_checkout(checkout_session):
 
     order = (
         ManualPlanOrder.objects.select_for_update()
-        .select_related("user")
+        .select_related("user", "renewal_of", "upgrade_from")
         .get(pk=int(order_id), user_id=int(user_id))
     )
     if order.payment_method != AnnualPlanPaymentMethod.BLIK:
@@ -180,7 +180,12 @@ def fulfill_blik_checkout(checkout_session):
     order.status = ManualPlanOrderStatus.PAID
     order.paid_at = paid_at
     order.payment_due_at = paid_at
-    order.access_until = paid_at + timedelta(days=365)
+    if order.renewal_of_id:
+        order.access_starts_at = order.renewal_of.access_until
+        order.access_until = order.access_starts_at + timedelta(days=365)
+    else:
+        order.access_starts_at = paid_at
+        order.access_until = paid_at + timedelta(days=365)
     order.stripe_checkout_session_id = session_id
     order.stripe_payment_intent_id = payment_intent or ""
     order.save(
@@ -188,12 +193,20 @@ def fulfill_blik_checkout(checkout_session):
             "status",
             "paid_at",
             "payment_due_at",
+            "access_starts_at",
             "access_until",
             "stripe_checkout_session_id",
             "stripe_payment_intent_id",
             "updated_at",
         ]
     )
+    if order.upgrade_from_id:
+        order.upgrade_from.status = ManualPlanOrderStatus.DISABLED
+        order.upgrade_from.disabled_at = paid_at
+        order.upgrade_from.disabled_by = order.user
+        order.upgrade_from.save(
+            update_fields=["status", "disabled_at", "disabled_by", "updated_at"]
+        )
     activate_paid_plan(order.user, order.tier)
 
     from apps.notifications.services import notify_invoice_needed_for_manual_order

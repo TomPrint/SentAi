@@ -34,6 +34,7 @@ from apps.billing.models import (
     ManualPlanOrder,
     ManualPlanOrderStatus,
 )
+from apps.billing.access import renewable_manual_order, upgradeable_manual_order
 from apps.billing.services import (
     activate_paid_plan,
     amount_after_discount,
@@ -84,15 +85,62 @@ def build_manual_payment_reference(user, tier):
 
 
 @transaction.atomic
-def create_manual_plan_order(user, currency, tier=UserPlanTier.PRO, payment_reference=None, coupon_code=""):
+def create_manual_plan_order(
+    user,
+    currency,
+    tier=UserPlanTier.PRO,
+    payment_reference=None,
+    coupon_code="",
+    renewal_of_id=None,
+    upgrade_from_id=None,
+):
     if tier not in UserPlanTier.values:
         raise ValueError("Unsupported manual plan")
     user = User.objects.select_for_update().get(pk=user.pk)
     active_manual_order = user.manual_plan_orders.select_for_update().filter(
         status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID],
         access_until__gt=timezone.now(),
-    ).first()
-    if active_manual_order:
+    ).order_by("-access_until").first()
+    renewal_of = None
+    upgrade_from = None
+    if renewal_of_id and upgrade_from_id:
+        raise ValueError("An order cannot be both a renewal and an upgrade.")
+    if renewal_of_id:
+        renewal_of = user.manual_plan_orders.select_for_update().filter(
+            pk=renewal_of_id,
+            status=ManualPlanOrderStatus.PAID,
+            tier=tier,
+            access_until__gt=timezone.now(),
+            access_until__lte=timezone.now() + timedelta(days=30),
+        ).first()
+        if not renewal_of:
+            raise ValueError("This plan is not available for early renewal.")
+        if renewal_of.renewal_orders.filter(
+            status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID]
+        ).exists():
+            raise ValueError("A renewal order already exists for this period.")
+    elif upgrade_from_id:
+        upgrade_from = user.manual_plan_orders.select_for_update().filter(
+            pk=upgrade_from_id,
+            status=ManualPlanOrderStatus.PAID,
+            access_until__gt=timezone.now(),
+        ).filter(
+            models.Q(access_starts_at__isnull=True)
+            | models.Q(access_starts_at__lte=timezone.now())
+        ).first()
+        if (
+            not upgrade_from
+            or UserPlanUpdateForm.PLAN_RANKS.get(tier, -1)
+            <= UserPlanUpdateForm.PLAN_RANKS.get(upgrade_from.tier, -1)
+            or upgrade_from.renewal_orders.filter(
+                status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID]
+            ).exists()
+            or upgrade_from.upgrade_orders.filter(
+                status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID]
+            ).exists()
+        ):
+            raise ValueError("This plan is not available as an upgrade.")
+    elif active_manual_order:
         raise ValueError("A manual order already exists for this period.")
     if (
         settings.SUBSCRIPTION_BILLING_ENABLED
@@ -113,6 +161,11 @@ def create_manual_plan_order(user, currency, tier=UserPlanTier.PRO, payment_refe
             raise ValueError("This discount coupon is invalid, expired, or has already been used.")
         discount_percent = coupon.discount_percent
     amount = amount_after_discount(original_amount, discount_percent)
+    access_starts_at = renewal_of.access_until if renewal_of else now
+    access_until = access_starts_at + timedelta(days=365)
+    payment_due_at = now + timedelta(days=12)
+    if renewal_of:
+        payment_due_at = min(payment_due_at, renewal_of.access_until)
     order = ManualPlanOrder.objects.create(
         user=user,
         tier=tier,
@@ -123,9 +176,17 @@ def create_manual_plan_order(user, currency, tier=UserPlanTier.PRO, payment_refe
         amount=amount,
         currency=currency,
         payment_reference=payment_reference,
-        payment_due_at=now + timedelta(days=12),
-        access_until=now + timedelta(days=365),
+        payment_due_at=payment_due_at,
+        access_starts_at=access_starts_at,
+        access_until=access_until,
+        renewal_of=renewal_of,
+        upgrade_from=upgrade_from,
     )
+    if upgrade_from:
+        upgrade_from.status = ManualPlanOrderStatus.DISABLED
+        upgrade_from.disabled_at = now
+        upgrade_from.disabled_by = user
+        upgrade_from.save(update_fields=["status", "disabled_at", "disabled_by", "updated_at"])
     activate_paid_plan(user, tier)
     from apps.notifications.services import notify_manual_order_created
 
@@ -334,12 +395,16 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
             status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID],
             access_until__gt=timezone.now(),
         ).exists()
+        renewal_requested = request.GET.get("renew") == "1" or request.POST.get("renewal") == "1"
+        renewable_order = renewable_manual_order(request.user) if renewal_requested else None
+        upgrade_requested = request.GET.get("upgrade") == "1" or request.POST.get("upgrade") == "1"
+        upgradeable_order = upgradeable_manual_order(request.user) if upgrade_requested else None
         if (
             (
                 billing_subscription
                 and billing_subscription.blocks_new_purchase
             )
-            or active_manual_order
+            or (active_manual_order and not renewable_order and not upgradeable_order)
         ) and request.POST.get("checkout_confirmed") != "1":
             return redirect("dashboard:billing-portal")
         return super().dispatch(request, *args, **kwargs)
@@ -356,13 +421,18 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        if self.request.method == "GET" and self.request.GET.get("upgrade") == "1":
+        if self.request.GET.get("renew") == "1" or self.request.POST.get("renewal") == "1":
+            form.fields["plan_tier"].choices = [
+                choice for choice in form.fields["plan_tier"].choices
+                if choice[0] == self.request.user.plan_tier
+            ]
+            form.fields["plan_tier"].initial = self.request.user.plan_tier
+        if self.request.GET.get("upgrade") == "1" or self.request.POST.get("upgrade") == "1":
             current_rank = UserPlanUpdateForm.PLAN_RANKS[self.request.user.plan_tier]
             form.fields["plan_tier"].choices = [
                 choice
                 for choice in form.fields["plan_tier"].choices
-                if choice[0] == self.request.user.plan_tier
-                or UserPlanUpdateForm.PLAN_RANKS[choice[0]] > current_rank
+                if UserPlanUpdateForm.PLAN_RANKS[choice[0]] > current_rank
             ]
         return form
 
@@ -414,13 +484,17 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
             else None
         )
         context["billing_profile"] = getattr(self.request.user, "billing_profile", None)
-        context["is_upgrade_view"] = self.request.GET.get("upgrade") == "1"
+        context["is_upgrade_view"] = (
+            self.request.GET.get("upgrade") == "1" or self.request.POST.get("upgrade") == "1"
+        )
+        context["is_renewal_view"] = (
+            self.request.GET.get("renew") == "1" or self.request.POST.get("renewal") == "1"
+        )
         current_rank = UserPlanUpdateForm.PLAN_RANKS[self.request.user.plan_tier]
         context["visible_plan_tiers"] = [
             tier
             for tier, _label in UserPlanUpdateForm.base_fields["plan_tier"].choices
             if not context["is_upgrade_view"]
-            or tier == self.request.user.plan_tier
             or UserPlanUpdateForm.PLAN_RANKS[tier] > current_rank
         ]
         manual_plan_order = self.request.user.manual_plan_orders.filter(
@@ -566,8 +640,12 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
         active_manual_order = user.manual_plan_orders.filter(
             status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID], access_until__gt=timezone.now()
         ).first()
+        renewal_requested = self.request.GET.get("renew") == "1" or self.request.POST.get("renewal") == "1"
+        renewal_source = renewable_manual_order(user, selected_tier) if renewal_requested else None
+        upgrade_requested = self.request.GET.get("upgrade") == "1" or self.request.POST.get("upgrade") == "1"
+        upgrade_source = upgradeable_manual_order(user, selected_tier) if upgrade_requested else None
 
-        if active_manual_order:
+        if active_manual_order and not renewal_source and not upgrade_source:
             messages.warning(self.request, "Masz aktywny plan. Inny plan będzie dostępny po jego wyłączeniu lub zakończeniu.")
             return redirect("dashboard:plan-update")
 
@@ -582,7 +660,11 @@ class PlanUpdateView(LoginRequiredMixin, FormView):
             self.request.session["pending_plan_purchase"] = {
                 "tier": selected_tier,
                 "currency": selected_currency,
-                "upgrade": self.request.GET.get("upgrade") == "1",
+                "upgrade": upgrade_requested,
+                "manual_upgrade": bool(upgrade_source),
+                "upgrade_from_id": upgrade_source.pk if upgrade_source else None,
+                "renewal": bool(renewal_source),
+                "renewal_of_id": renewal_source.pk if renewal_source else None,
             }
             if not settings.SUBSCRIPTION_BILLING_ENABLED:
                 billing_profile = getattr(user, "billing_profile", None)
@@ -809,10 +891,20 @@ class BillingPortalView(LoginRequiredMixin, TemplateView):
             if settings.SUBSCRIPTION_BILLING_ENABLED
             else None
         )
-        manual_plan_order = self.request.user.manual_plan_orders.filter(
+        now = timezone.now()
+        current_manual_order = self.request.user.manual_plan_orders.filter(
             status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID],
-            access_until__gt=timezone.now(),
-        ).first()
+            access_until__gt=now,
+        ).filter(
+            models.Q(access_starts_at__isnull=True) | models.Q(access_starts_at__lte=now)
+        ).order_by("-access_until").first()
+        scheduled_renewal_order = self.request.user.manual_plan_orders.filter(
+            renewal_of__isnull=False,
+            status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID],
+            access_starts_at__gt=now,
+            access_until__gt=now,
+        ).order_by("access_starts_at").first()
+        manual_plan_order = current_manual_order or scheduled_renewal_order
         context["stripe_sync_error"] = False
         if (
             billing_subscription
@@ -832,6 +924,11 @@ class BillingPortalView(LoginRequiredMixin, TemplateView):
                 context["stripe_sync_error"] = True
         context["billing_subscription"] = billing_subscription
         context["manual_plan_order"] = manual_plan_order
+        context["scheduled_renewal_order"] = scheduled_renewal_order
+        context["renewable_manual_order"] = renewable_manual_order(self.request.user)
+        context["can_renew_manual_plan"] = bool(context["renewable_manual_order"])
+        context["upgradeable_manual_order"] = upgradeable_manual_order(self.request.user)
+        context["can_upgrade_manual_plan"] = bool(context["upgradeable_manual_order"])
         context["can_terminate_plan"] = bool(
             manual_plan_order
             or (
@@ -944,25 +1041,19 @@ class BillingSubscriptionCancelView(LoginRequiredMixin, View):
             )
             return redirect("dashboard:billing-portal")
 
-        manual_plan_order = request.user.manual_plan_orders.filter(
+        manual_plan_orders = request.user.manual_plan_orders.filter(
             status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID],
             access_until__gt=timezone.now(),
-        ).first()
-        if manual_plan_order:
+        )
+        if manual_plan_orders.exists():
             acknowledged_at = timezone.now()
             with transaction.atomic():
-                manual_plan_order.status = ManualPlanOrderStatus.DISABLED
-                manual_plan_order.disabled_at = acknowledged_at
-                manual_plan_order.disabled_by = request.user
-                manual_plan_order.termination_acknowledged_at = acknowledged_at
-                manual_plan_order.save(
-                    update_fields=[
-                        "status",
-                        "disabled_at",
-                        "disabled_by",
-                        "termination_acknowledged_at",
-                        "updated_at",
-                    ]
+                manual_plan_orders.update(
+                    status=ManualPlanOrderStatus.DISABLED,
+                    disabled_at=acknowledged_at,
+                    disabled_by=request.user,
+                    termination_acknowledged_at=acknowledged_at,
+                    updated_at=acknowledged_at,
                 )
                 expire_paid_access(request.user)
             request.session.pop("pending_plan_purchase", None)
@@ -1120,6 +1211,7 @@ class PlanPaymentMethodView(LoginRequiredMixin, PendingPurchaseMixin, FormView):
             context["selected_plan_name"] = UserPlanTier(pending["tier"]).label
         context["blik_available"] = bool(settings.BLIK_PAYMENTS_ENABLED and settings.STRIPE_SECRET_KEY)
         context["subscription_billing_enabled"] = settings.SUBSCRIPTION_BILLING_ENABLED
+        context["is_manual_upgrade"] = bool(pending.get("manual_upgrade"))
         return context
 
     def form_valid(self, form):
@@ -1206,6 +1298,7 @@ class PlanPurchaseTermsView(LoginRequiredMixin, PendingPurchaseMixin, FormView):
         pending = self.pending_purchase()
         context.update(self.selected_price_context(pending))
         context["payment_method"] = pending["payment_method"]
+        context["is_manual_upgrade"] = bool(pending.get("manual_upgrade"))
         return context
 
     def form_valid(self, form):
@@ -1269,10 +1362,25 @@ class BlikPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateView
                 else "Complete every order step first.",
             )
             return redirect("dashboard:plan-update")
+        renewal_source = (
+            renewable_manual_order(request.user, pending["tier"])
+            if pending.get("renewal")
+            else None
+        )
+        upgrade_source = (
+            upgradeable_manual_order(request.user, pending["tier"])
+            if pending.get("manual_upgrade")
+            else None
+        )
+        existing_pending_order = self._pending_order(pending)
         if request.user.manual_plan_orders.filter(
             status=ManualPlanOrderStatus.PAID,
             access_until__gt=timezone.now(),
-        ).exists():
+        ).exists() and not existing_pending_order and not (
+            renewal_source and renewal_source.pk == pending.get("renewal_of_id")
+        ) and not (
+            upgrade_source and upgrade_source.pk == pending.get("upgrade_from_id")
+        ):
             messages.info(
                 request,
                 "Masz już aktywny plan."
@@ -1312,6 +1420,7 @@ class BlikPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateView
             "coupon_form": ManualCouponApplyForm(initial={"coupon_code": coupon.code if coupon else ""}),
             "applied_coupon": coupon,
             "coupon_locked": bool(order),
+            "is_manual_upgrade": bool(pending.get("manual_upgrade")),
         })
         context["billing_profile"] = self.request.user.billing_profile
         return context
@@ -1334,6 +1443,43 @@ class BlikPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateView
         if existing:
             return existing
         now = timezone.now()
+        renewal_of = None
+        upgrade_from = None
+        if pending.get("renewal") and pending.get("manual_upgrade"):
+            raise ValueError("An order cannot be both a renewal and an upgrade.")
+        if pending.get("renewal"):
+            renewal_of = self.request.user.manual_plan_orders.select_for_update().filter(
+                pk=pending.get("renewal_of_id"),
+                status=ManualPlanOrderStatus.PAID,
+                tier=pending["tier"],
+                access_until__gt=now,
+                access_until__lte=now + timedelta(days=30),
+            ).first()
+            if not renewal_of or renewal_of.renewal_orders.filter(
+                status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID]
+            ).exists():
+                raise ValueError("This plan is not available for early renewal.")
+        elif pending.get("manual_upgrade"):
+            upgrade_from = self.request.user.manual_plan_orders.select_for_update().filter(
+                pk=pending.get("upgrade_from_id"),
+                status=ManualPlanOrderStatus.PAID,
+                access_until__gt=now,
+            ).filter(
+                models.Q(access_starts_at__isnull=True)
+                | models.Q(access_starts_at__lte=now)
+            ).first()
+            if (
+                not upgrade_from
+                or UserPlanUpdateForm.PLAN_RANKS.get(pending["tier"], -1)
+                <= UserPlanUpdateForm.PLAN_RANKS.get(upgrade_from.tier, -1)
+                or upgrade_from.renewal_orders.filter(
+                    status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID]
+                ).exists()
+                or upgrade_from.upgrade_orders.filter(
+                    status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID]
+                ).exists()
+            ):
+                raise ValueError("This plan is not available as an upgrade.")
         currency = self.request.user.billing_profile.billing_currency()
         original_amount = manual_plan_amount(pending["tier"], currency)
         coupon = None
@@ -1343,6 +1489,7 @@ class BlikPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateView
             if not coupon or not coupon.is_available(at=now):
                 raise ValueError("This discount coupon is invalid, expired, or has already been used.")
         discount_percent = coupon.discount_percent if coupon else 0
+        access_starts_at = renewal_of.access_until if renewal_of else now
         order = ManualPlanOrder.objects.create(
             user=self.request.user,
             tier=pending["tier"],
@@ -1355,8 +1502,11 @@ class BlikPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateView
             payment_method=AnnualPlanPaymentMethod.BLIK,
             status=ManualPlanOrderStatus.AWAITING_PAYMENT,
             payment_reference=build_manual_payment_reference(self.request.user, f"{pending['tier']}-BLIK"),
-            payment_due_at=now + timedelta(hours=1),
-            access_until=now,
+            payment_due_at=min(now + timedelta(hours=1), renewal_of.access_until) if renewal_of else now + timedelta(hours=1),
+            access_starts_at=access_starts_at,
+            access_until=access_starts_at + timedelta(days=365) if renewal_of else now,
+            renewal_of=renewal_of,
+            upgrade_from=upgrade_from,
         )
         pending["blik_order_id"] = order.pk
         self.request.session["pending_plan_purchase"] = pending
@@ -1585,9 +1735,25 @@ class ManualPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateVi
                 else "Bank transfer in EUR is unavailable. Choose another payment method.",
             )
             return redirect("dashboard:plan-payment-method")
+        renewal_source = (
+            renewable_manual_order(request.user, pending["tier"])
+            if pending.get("renewal")
+            else None
+        )
+        valid_renewal = bool(
+            renewal_source and renewal_source.pk == pending.get("renewal_of_id")
+        )
+        upgrade_source = (
+            upgradeable_manual_order(request.user, pending["tier"])
+            if pending.get("manual_upgrade")
+            else None
+        )
+        valid_upgrade = bool(
+            upgrade_source and upgrade_source.pk == pending.get("upgrade_from_id")
+        )
         if request.user.manual_plan_orders.filter(
             status__in=[ManualPlanOrderStatus.AWAITING_PAYMENT, ManualPlanOrderStatus.PAID], access_until__gt=timezone.now()
-        ).exists():
+        ).exists() and not valid_renewal and not valid_upgrade:
             messages.info(request, "Masz już aktywny plan.")
             return redirect("dashboard:plan-update")
         subscription = getattr(request.user, "billing_subscription", None)
@@ -1602,7 +1768,7 @@ class ManualPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateVi
         if request.user.manual_plan_orders.filter(
             access_until__gt=timezone.now(),
             termination_acknowledged_at__isnull=True,
-        ).exists():
+        ).exists() and not valid_renewal and not valid_upgrade:
             messages.warning(request, "Nie można ponownie uruchomić planu Manual przed końcem pierwotnego roku zamówienia.")
             return redirect("dashboard:plan-update")
         if not pending.get("payment_reference"):
@@ -1643,6 +1809,7 @@ class ManualPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateVi
             "manual_payment_bank": settings.MANUAL_PAYMENT_BANK,
             "manual_payment_iban": settings.MANUAL_PAYMENT_IBAN_PLN if currency == "pln" else settings.MANUAL_PAYMENT_IBAN_EUR,
             "manual_payment_reference": pending["payment_reference"],
+            "is_manual_upgrade": bool(pending.get("manual_upgrade")),
         })
         return context
 
@@ -1684,6 +1851,8 @@ class ManualPlanConfirmView(LoginRequiredMixin, PendingPurchaseMixin, TemplateVi
                 tier=tier,
                 payment_reference=pending["payment_reference"],
                 coupon_code=pending.get("coupon_code", ""),
+                renewal_of_id=pending.get("renewal_of_id") if pending.get("renewal") else None,
+                upgrade_from_id=pending.get("upgrade_from_id") if pending.get("manual_upgrade") else None,
             )
         except ValueError as exc:
             if pending.get("coupon_code"):
@@ -2039,7 +2208,10 @@ class BillingOverviewView(AdminRequiredMixin, TemplateView):
 
         paid_manual_users = set()
         for order in sorted(manual_orders, key=lambda item: (item.created_at, item.pk)):
-            order.is_renewal_order = order.user_id in paid_manual_users
+            order.is_upgrade_order = bool(order.upgrade_from_id)
+            order.is_renewal_order = bool(order.renewal_of_id) or (
+                order.user_id in paid_manual_users and not order.is_upgrade_order
+            )
             if order.paid_at is not None:
                 paid_manual_users.add(order.user_id)
 
@@ -2317,7 +2489,10 @@ class BillingInvoicesAdminView(AdminRequiredMixin, TemplateView):
         for order in sorted(paid_manual_orders, key=lambda item: (item.created_at, item.pk)):
             sequence = manual_counts.get(order.user_id, 0) + 1
             manual_counts[order.user_id] = sequence
-            order.is_renewal_order = sequence > 1
+            order.is_upgrade_order = bool(order.upgrade_from_id)
+            order.is_renewal_order = bool(order.renewal_of_id) or (
+                sequence > 1 and not order.is_upgrade_order
+            )
         for order in paid_manual_orders:
             invoice = next(iter(order.invoices.all()), None)
             rows.append({
@@ -2330,6 +2505,7 @@ class BillingInvoicesAdminView(AdminRequiredMixin, TemplateView):
                 "paid_at": order.paid_at,
                 "invoice": invoice,
                 "is_renewal": order.is_renewal_order,
+                "is_upgrade": order.is_upgrade_order,
                 "billing": self._billing_details(order.user, invoice),
             })
         sort_map = {
@@ -2761,6 +2937,8 @@ class ClientListView(AdminRequiredMixin, TemplateView):
                     key = "awaiting_payment"
                 elif manual_order.access_until <= now:
                     key = "expired"
+                elif manual_order.status == ManualPlanOrderStatus.PAID and manual_order.upgrade_from_id:
+                    key = "upgraded"
                 elif manual_order.status == ManualPlanOrderStatus.PAID and (
                     len(manual_orders) > 1
                     or bool(
@@ -2822,6 +3000,7 @@ class ClientListView(AdminRequiredMixin, TemplateView):
                 "renewal_off": (6, "Odnowienie wyłączone", "Renewal turned off", "warning"),
                 "active": (7, "Plan aktywny", "Plan active", "success"),
                 "renewed": (8, "Odnowiony · aktywny", "Renewed · active", "success"),
+                "upgraded": (9, "Ulepszony · aktywny", "Upgraded · active", "success"),
             }
             rank, label_pl, label_en, style = statuses[key]
             client.plan_status_rank = rank

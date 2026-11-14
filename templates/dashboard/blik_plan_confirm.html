@@ -3,6 +3,7 @@
 <section class="mx-auto max-w-3xl rounded-xl border border-[#d9d9d9] bg-white p-6 lg:p-8">
     <p class="font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">BLIK · Stripe</p>
     <h1 class="mt-2 font-display text-3xl font-bold text-[#284b63]">{% if request.LANGUAGE_CODE == 'pl' %}Potwierdź zamówienie{% else %}Confirm your order{% endif %}</h1>
+    {% if is_manual_upgrade %}<div class="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>{% if request.LANGUAGE_CODE == 'pl' %}Uwaga — ulepszenie planu:{% else %}Plan upgrade warning:{% endif %}</strong> {% if request.LANGUAGE_CODE == 'pl' %}Nowy plan zastąpi obecny dopiero po potwierdzeniu płatności BLIK. Rozpocznie wtedy nowy okres 12 miesięcy. Płacisz pełną cenę nowego planu; poprzednia opłata i niewykorzystany okres nie podlegają zwrotowi ani odliczeniu.{% else %}The new plan replaces the current one only after BLIK payment confirmation and then starts a new 12-month period. You pay the full new-plan price; the previous fee and unused time are not refunded or credited.{% endif %}</div>{% endif %}
     <div class="mt-6 rounded-xl border border-[#d9d9d9] bg-[#f8fafa] p-5 text-sm leading-7">
         <p><strong>{% if request.LANGUAGE_CODE == 'pl' %}Plan{% else %}Plan{% endif %}:</strong> {{ selected_plan_name }}</p>
         <p><strong>{% if request.LANGUAGE_CODE == 'pl' %}Okres{% else %}Period{% endif %}:</strong> {% if request.LANGUAGE_CODE == 'pl' %}12 miesięcy{% else %}12 months{% endif %}</p>

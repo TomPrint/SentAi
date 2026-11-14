@@ -12,6 +12,7 @@
     <p class="font-mono text-[10px] uppercase tracking-widest text-[#5ca197]">{% if request.LANGUAGE_CODE == 'pl' %}Płatność{% else %}Payment{% endif %}</p>
     <h1 class="mt-2 font-display text-3xl font-bold text-[#284b63]">{% if request.LANGUAGE_CODE == 'pl' %}Wybierz sposób płatności{% else %}Choose a payment method{% endif %}</h1>
     <p class="mt-2 text-sm text-[#353535]/65">{{ selected_plan_name }} · {{ selected_net_price_label }} {% if request.LANGUAGE_CODE == 'pl' %}netto{% else %}net{% endif %} · {{ selected_price_label }} {% if request.LANGUAGE_CODE == 'pl' %}brutto za 12 miesięcy{% else %}gross for 12 months{% endif %}</p>
+    {% if is_manual_upgrade %}<div class="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>{% if request.LANGUAGE_CODE == 'pl' %}Ulepszenie planu:{% else %}Plan upgrade:{% endif %}</strong> {% if request.LANGUAGE_CODE == 'pl' %}Zapłacisz pełną cenę nowego planu. Dotychczasowa opłata i niewykorzystany okres nie podlegają zwrotowi ani odliczeniu.{% else %}You will pay the full price of the new plan. The previous fee and unused period are not refundable or credited.{% endif %}</div>{% endif %}
     {% if price_unavailable %}
         <div class="mt-6 rounded-lg border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800">{% if request.LANGUAGE_CODE == 'pl' %}Brak aktywnej ceny dla wybranego planu.{% else %}No active price is available for the selected plan.{% endif %}</div>
     {% else %}
